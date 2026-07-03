@@ -11,6 +11,7 @@ from app.models import (
     ReportStatus,
 )
 from app.services import VectorStore, ContradictionDetector, EvidenceVerifier, RiskScorer
+from app.config import config
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ def retrieve_candidates(state: GraphState) -> dict:
 
 
 # Global thread pool to bound LLM verification concurrency across all requests
-llm_verify_executor = ThreadPoolExecutor(max_workers=3)
+llm_verify_executor = ThreadPoolExecutor(max_workers=max(1, config.LLM_VERIFY_CONCURRENCY))
 
 def verify_and_score(state: GraphState) -> dict:
     """Verify candidates with LLM and score risk for confirmed contradictions."""
@@ -45,11 +46,14 @@ def verify_and_score(state: GraphState) -> dict:
     reports: list[ContradictionReport] = []
     discarded = 0
 
+    if not state["candidates"]:
+        return {"reports": reports, "discarded": discarded}
+
     def _verify_candidate(c: ContradictionCandidate):
         is_valid, verification, is_discarded = EvidenceVerifier.verify(c)
         risk = None
         if not is_discarded and is_valid and verification.is_contradiction:
-            title = verification.title or c.topic
+            title = c.topic
             risk = RiskScorer.score(
                 title,
                 verification.rationale,
@@ -70,7 +74,7 @@ def verify_and_score(state: GraphState) -> dict:
                 continue
 
             if is_valid and verification.is_contradiction:
-                title = verification.title or candidate.topic
+                title = candidate.topic
 
                 reports.append(
                     ContradictionReport(

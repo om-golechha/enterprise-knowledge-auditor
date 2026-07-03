@@ -68,7 +68,7 @@ async def _global_exception_handler(request: Request, exc: Exception):
 
 
 # ---------------------------------------------------------------------------
-# Shared state (in-memory for demo — would be a DB in production)
+# Shared state (in-memory cache backed by a JSON report file)
 # ---------------------------------------------------------------------------
 audit_reports: dict[str, AuditReport] = {}
 
@@ -83,7 +83,7 @@ if os.path.exists(REPORTS_FILE):
         logger.error(f"Failed to load reports: {e}")
 
 vector_stores: dict[str, VectorStore] = {}
-_lock = threading.Lock()
+_lock = threading.RLock()
 
 CORPUS_ID_RE = re.compile(r"^[a-zA-Z0-9_\-]{1,128}$")
 ALLOWED_EXTENSIONS = {".pdf"}
@@ -106,29 +106,40 @@ def get_vector_store(corpus_id: str) -> VectorStore:
         return vector_stores[corpus_id]
 
 def _persist_reports():
-    with open(REPORTS_FILE, "w") as f:
+    tmp_path = f"{REPORTS_FILE}.tmp"
+    with open(tmp_path, "w") as f:
         json.dump({k: v.model_dump(mode="json") for k, v in audit_reports.items()}, f)
+    os.replace(tmp_path, REPORTS_FILE)
 
 def _enforce_report_limit() -> None:
     """Evict the oldest report and files for the corpus when over the limit."""
-    if len(audit_reports) <= config.MAX_REPORTS:
-        return
-    oldest_key = next(iter(audit_reports))
-    corpus_id = audit_reports[oldest_key].corpus_id
-    del audit_reports[oldest_key]
+    while len(audit_reports) > config.MAX_REPORTS:
+        oldest_key = next(iter(audit_reports))
+        corpus_id = audit_reports[oldest_key].corpus_id
+        del audit_reports[oldest_key]
+        vector_stores.pop(corpus_id, None)
+
+        corpus_dir = os.path.join(UPLOADS_DIR, corpus_id)
+        if os.path.isdir(corpus_dir):
+            try:
+                shutil.rmtree(corpus_dir)
+                logger.info("Evicted report and files for corpus %s", oldest_key)
+            except OSError as e:
+                logger.warning("Failed to clean files for %s: %s", oldest_key, e)
     _persist_reports()
 
-    corpus_dir = os.path.join(UPLOADS_DIR, corpus_id)
-    if os.path.isdir(corpus_dir):
-        try:
-            shutil.rmtree(corpus_dir)
-            logger.info("Evicted report and files for corpus %s", oldest_key)
-        except OSError as e:
-            logger.warning("Failed to clean files for %s: %s", oldest_key, e)
+
+def _safe_filename(filename: str) -> str:
+    """Return a plain filename, rejecting empty/path-like names."""
+    cleaned = os.path.basename(filename.replace("\\", "/")).strip()
+    if not cleaned or cleaned in {".", ".."}:
+        raise HTTPException(status_code=400, detail="Invalid filename.")
+    return cleaned
 
 
 def _safe_path(corpus_id: str, filename: str) -> str:
     """Resolve a file path inside the uploads dir, blocking path traversal."""
+    filename = _safe_filename(filename)
     corpus_dir = os.path.realpath(os.path.join(UPLOADS_DIR, corpus_id))
     os.makedirs(corpus_dir, exist_ok=True)
     full_path = os.path.realpath(os.path.join(corpus_dir, filename))
@@ -161,7 +172,7 @@ async def ingest_documents(
     files: List[UploadFile] = File(...),
     api_key: str = Depends(get_api_key)
 ):
-    """Upload documents, extract claims via LLM, embed, store in Chroma."""
+    """Upload PDFs, extract deterministic claim units, embed them, and store in Chroma."""
     _validate_corpus_id(corpus_id)
 
     # --- File count limit ---
@@ -185,9 +196,11 @@ async def ingest_documents(
     }
 
     max_bytes = config.MAX_FILE_SIZE_MB * 1024 * 1024
+    failed_files: list[dict[str, str]] = []
 
     for file in files:
-        filename = file.filename or "unknown.pdf"
+        filename = _safe_filename(file.filename or "unknown.pdf")
+        file_path = ""
         
         # --- Extension validation ---
         ext = os.path.splitext(filename)[1].lower()
@@ -229,6 +242,12 @@ async def ingest_documents(
                 "error": None
             }
         except Exception as e:
+            if file_path and os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                except OSError:
+                    logger.warning("Failed to remove partial upload %s", file_path)
+            failed_files.append({"filename": filename, "error": str(e)})
             manifest["files"][filename] = {
                 "parsed": False,
                 "claims": 0,
@@ -236,16 +255,24 @@ async def ingest_documents(
             }
             with open(manifest_path, "w") as f:
                 json.dump(manifest, f)
-            import traceback; traceback.print_exc(); logger.error(f"Pipeline failed for {filename}: {e}")
+            logger.exception("Pipeline failed for %s", filename)
 
     with open(manifest_path, "w") as f:
         json.dump(manifest, f)
 
+    if ingested_chunks == 0 and failed_files:
+        first_error = failed_files[0]["error"]
+        raise HTTPException(
+            status_code=400,
+            detail=f"No files were ingested. First failure: {first_error}",
+        )
+
     return {
-        "status": "success",
+        "status": "partial_success" if failed_files else "success",
         "corpus_id": corpus_id,
         "claims_ingested": ingested_chunks,
         "filenames": filenames,
+        "failed_files": failed_files,
     }
 
 
@@ -313,7 +340,6 @@ async def run_audit(corpus_id: str, api_key: str = Depends(get_api_key)):
     with _lock:
         audit_reports[audit_id] = report
         _enforce_report_limit()
-        _persist_reports()
 
     return report
 
@@ -331,13 +357,13 @@ async def get_report(audit_id: str, api_key: str = Depends(get_api_key)):
 async def update_status(audit_id: str, index: int, update: ReportStatusUpdate, api_key: str = Depends(get_api_key)):
     with _lock:
         report = audit_reports.get(audit_id)
-    if report is None:
-        raise HTTPException(status_code=404, detail="Report not found.")
-    if index < 0 or index >= len(report.contradictions):
-        raise HTTPException(status_code=404, detail="Contradiction index out of range.")
+        if report is None:
+            raise HTTPException(status_code=404, detail="Report not found.")
+        if index < 0 or index >= len(report.contradictions):
+            raise HTTPException(status_code=404, detail="Contradiction index out of range.")
 
-    report.contradictions[index].status = update.status
-    _persist_reports()
+        report.contradictions[index].status = update.status
+        _persist_reports()
     return {"status": "success", "new_status": update.status}
 
 

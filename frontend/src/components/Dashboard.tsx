@@ -63,7 +63,10 @@ export function Dashboard() {
 
   const handleFileChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
+      const newFiles = Array.from(e.target.files).filter(file => file.name.toLowerCase().endsWith('.pdf'));
+      if (newFiles.length !== e.target.files.length) {
+        setErrorMessage('Only PDF files are supported right now.');
+      }
       setFiles(prev => [...prev, ...newFiles]);
     }
   }, []);
@@ -86,7 +89,7 @@ export function Dashboard() {
     formData.append('corpus_id', corpusId);
 
     try {
-      setCurrentStage(1);
+      setCurrentStage(0);
       setStatusMessage('Extracting & Classifying Business Claims...');
       
       const ingestResponse = await fetch(`${API_BASE_URL}/ingest`, {
@@ -100,7 +103,9 @@ export function Dashboard() {
         let errorMsg = 'Ingest failed';
         try {
           const errorData = await ingestResponse.json();
-          if (errorData?.detail) errorMsg = errorData.detail;
+          if (errorData?.detail) {
+            errorMsg = typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail);
+          }
         } catch (e) {}
         throw new Error(errorMsg);
       }
@@ -109,7 +114,7 @@ export function Dashboard() {
       setIngestStats({ claims: ingestData.claims_ingested, files: ingestData.filenames.length });
 
       setCurrentStage(3);
-      setStatusMessage('Running topic-filtered vector retrieval...');
+      setStatusMessage('Retrieving high-signal candidate pairs...');
 
       const auditResponse = await fetch(`${API_BASE_URL}/audit?corpus_id=${corpusId}`, {
         method: 'POST',
@@ -117,10 +122,19 @@ export function Dashboard() {
         signal: abortControllerRef.current.signal
       });
 
-      if (!auditResponse.ok) throw new Error('Audit failed');
+      if (!auditResponse.ok) {
+        let errorMsg = 'Audit failed';
+        try {
+          const errorData = await auditResponse.json();
+          if (errorData?.detail) {
+            errorMsg = typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail);
+          }
+        } catch (e) {}
+        throw new Error(errorMsg);
+      }
 
-      setCurrentStage(6);
-      setStatusMessage('Generating Final Report...');
+      setCurrentStage(5);
+      setStatusMessage('Generating final report...');
 
       const reportData = await auditResponse.json();
       
@@ -135,6 +149,8 @@ export function Dashboard() {
       };
       
       addAnalysis(analysisData);
+      setCurrentStage(6);
+      setStatusMessage('Complete.');
       
       setTimeout(() => {
         navigate(`/analyses/${reportData.audit_id}`);
@@ -224,7 +240,7 @@ export function Dashboard() {
                     <input
                       type="file"
                       multiple
-                      accept=".pdf,.txt,.docx"
+                      accept=".pdf,application/pdf"
                       onChange={handleFileChange}
                       className="hidden"
                       ref={fileInputRef}

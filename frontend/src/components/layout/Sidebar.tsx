@@ -13,7 +13,7 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="w-[260px] border-r border-borderLight glass flex flex-col h-screen flex-shrink-0 z-10 transition-all relative overflow-hidden">
+    <aside className="w-[260px] border-r border-borderLight glass flex flex-col h-screen flex-shrink-0 z-40 transition-all relative overflow-hidden">
 
       
       {/* Logo with entrance animation */}

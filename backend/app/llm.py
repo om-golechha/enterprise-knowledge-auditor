@@ -26,6 +26,7 @@ def get_llm() -> ChatGroq:
         model_name=config.LLM_MODEL,
         api_key=api_key,
         temperature=0.0,
-        max_retries=5,
-        timeout=30,
+        max_retries=config.LLM_MAX_RETRIES,
+        request_timeout=config.LLM_TIMEOUT_SECONDS,
+        max_tokens=config.LLM_MAX_TOKENS,
     )

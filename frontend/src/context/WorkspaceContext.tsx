@@ -32,15 +32,23 @@ interface WorkspaceContextType {
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
+function readJson<T>(key: string, fallback: T): T {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : fallback;
+  } catch {
+    localStorage.removeItem(key);
+    return fallback;
+  }
+}
+
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [analyses, setAnalyses] = useState<AuditReport[]>(() => {
-    const saved = localStorage.getItem('auditor_analyses');
-    return saved ? JSON.parse(saved) : [];
+    return readJson<AuditReport[]>('auditor_analyses', []);
   });
 
   const [settings, setSettings] = useState<UserSettings>(() => {
-    const saved = localStorage.getItem('auditor_settings');
-    return saved ? JSON.parse(saved) : defaultSettings;
+    return { ...defaultSettings, ...readJson<Partial<UserSettings>>('auditor_settings', {}) };
   });
 
   useEffect(() => {

@@ -1,27 +1,34 @@
 from langchain_core.prompts import ChatPromptTemplate
 
-topic_match_prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are a strict logic gate. Your ONLY job is to determine if two policy claims govern the EXACT SAME subject matter, context, and scope.\n"
-               "RULES:\n"
-               "- 'Remote workers use VPN' and 'Office workers use LAN' -> DIFFERENT SUBJECT (Remote vs Office). Return is_same_subject=False.\n"
-               "- 'Emergency changes do not require CAB approval' vs 'Standard changes require CAB approval' -> DIFFERENT SUBJECT (Emergency vs Standard). Return False.\n"
-               "- 'Passwords must be 12 characters' vs 'Passwords must be 8 characters' -> EXACT SAME SUBJECT (Password length). Return True.\n"
-               "Output your reasoning, then the boolean."),
+contradiction_verification_prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a strict logic gate. Decide whether two policy claims are logically impossible to satisfy at the same time. You MUST output in JSON format.\n"
+               "\nRules:\n"
+               "1. If the subject or scope differs, set contradiction=false and explain why in conflict_analysis.\n"
+               "2. If one claim establishes a specific limit, timeframe, or threshold, and the other claim establishes a different limit/timeframe/threshold for the same or overlapping subject, they ARE a contradiction (e.g., 90 days vs 12 months). Set contradiction=true.\n"
+               "3. Identical or compatible requirements are NOT contradictions.\n"
+               "4. Contradictions include mutually exclusive obligations or conflicting numeric thresholds for the same or overlapping subjects.\n"
+               "5. The contradiction field MUST be an actual JSON boolean (`true` or `false`), NOT a string.\n"
+               "6. The evidence_spans field MUST be an actual JSON array of exactly two STRINGS (e.g. `[\"quote from A\", \"quote from B\"]`), NOT a list of objects and NOT a string.\n"
+               "7. You MUST provide a logical explanation in conflict_analysis and a score from 0.0 to 1.0 in confidence.\n"
+               "8. CRITICAL: If a claim is missing explicit nouns due to text truncation (e.g. 'are rotated every 12 months' with no subject), assume it refers to the SAME subject as the other claim. However, if BOTH claims have explicit but DIFFERENT nouns (e.g. 'System logs' vs 'Database backups'), they are DIFFERENT subjects.\n"
+               "\nPositive examples:\n"
+               "- A: 'Passwords must be rotated every 180 days.' B: 'Passwords must be rotated every 90 days.' -> same password rotation requirement; contradiction=true.\n"
+               "- A: 'Passwords must be rotated every 90 days for privileged users.' B: 'Passwords are rotated every 12 months.' -> conflicting timeframes for an overlapping subject; contradiction=true.\n"
+               "- A: 'MFA is optional for all employees.' B: 'MFA is mandatory for all employees.' -> same MFA requirement; contradiction=true.\n"
+               "- A: 'Exceptions are valid for 12 months.' B: 'Exceptions are valid for 6 months.' -> same exception duration; contradiction=true.\n"
+               "\nNegative examples:\n"
+               "- A: 'System logs kept for 365 days.' B: 'Database backups kept for 90 days.' -> different artifacts; contradiction=false.\n"
+               "- A: 'Data in transit must use TLS 1.2 or higher.' B: 'TLS 1.0 and 1.1 are blocked.' -> compatible TLS baseline; contradiction=false.\n"
+               "- A: 'Access is least privilege.' B: 'Accounts are provisioned through a landing zone.' -> complementary controls; contradiction=false.\n"
+               "- A: 'Privileged sessions time out after 15 minutes.' B: 'Read-only sessions time out after 45 minutes.' -> different roles; contradiction=false.\n"
+               "- A: 'All production microservices must use OAuth2 for authentication.' B: 'Multi-factor authentication is Optional for all employees.' -> different subjects (microservices vs employees); contradiction=false.\n"
+               "- A: 'System logs must be retained for 365 days.' B: 'Database backups must be retained for 90 days.' -> different subjects (logs vs backups); contradiction=false.\n"
+               "- A: 'Minimum 14 characters for standard users.' B: 'Minimum 18 characters for privileged users.' -> different account classes; contradiction=false."),
     ("human", "Claim A: \"{claim_a}\"\nClaim B: \"{claim_b}\"")
 ])
 
-contradiction_verification_prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are a Principal Security & Policy Auditor reviewing enterprise documents for contradictions.\n"
-               "INSTRUCTIONS:\n"
-               "1. Summarize the premise of Claim A and Claim B objectively.\n"
-               "2. A contradiction exists if following one rule would cause a person to VIOLATE the other rule in practice.\n"
-               "   This includes: conflicting numerical requirements, overlapping scopes with different standards,\n"
-               "   policies that make compliance with both impractical or ambiguous.\n"
-               "3. You do NOT need formal logical impossibility. Real-world operational conflict is sufficient.\n"
-               "4. Provide exact quoted text spans from the original claims as evidence.\n"
-               "5. If they genuinely do not conflict in any practical scenario, output contradiction=False.\n"
-               "6. Assess business risk: high = compliance/security impact, medium = operational confusion, low = minor inconsistency.\n"
-               "7. Confidence (0.0-1.0) should reflect how clear and direct the conflict is."),
+topic_match_prompt = ChatPromptTemplate.from_messages([
+    ("system", "Decide if two policy claims govern the exact same subject and scope. Return is_same_subject=false when they only share a broad topic."),
     ("human", "Claim A: \"{claim_a}\"\nClaim B: \"{claim_b}\"")
 ])
 

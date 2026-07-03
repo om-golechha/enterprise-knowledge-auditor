@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from enum import Enum
-from typing import List
+from typing import List, Any
+from pydantic import field_validator
 
 class RiskLevel(str, Enum):
     LOW = "low"
@@ -30,14 +31,11 @@ class ContradictionCandidate(BaseModel):
 class VerificationResponse(BaseModel):
     """Structured output expected from the LLM."""
     is_contradiction: bool
-    premise_a_summary: str = ""
-    premise_b_summary: str = ""
-    conflict_analysis: str = ""
-    evidence_span_a: str = ""
-    evidence_span_b: str = ""
-    confidence: float = Field(0.0, ge=0.0, le=100.0)
-    rationale: str = ""
-    title: str = ""
+    conflict_analysis: str
+    evidence_span_a: str
+    evidence_span_b: str
+    confidence: float
+    rationale: str
 
 class TopicMatchResult(BaseModel):
     is_same_subject: bool = Field(description="True if both claims govern the EXACT SAME subject matter/context.")
@@ -76,15 +74,22 @@ class ReportStatusUpdate(BaseModel):
 
 
 class ContradictionResult(BaseModel):
-    premise_a_summary: str = Field(description="Objective summary of the rule established by Claim A")
-    premise_b_summary: str = Field(description="Objective summary of the rule established by Claim B")
+    contradiction: bool = Field(description="True ONLY if following one rule makes it literally impossible to comply with the other rule at the same time. If they govern different scopes, subjects, or are complementary, this MUST be False.")
     conflict_analysis: str = Field(description="Logical analysis of whether these two rules are mutually exclusive")
-    contradiction: bool = Field(description="True if following one rule would cause a person to violate the other in practice")
-    title: str = Field(description="A short, specific 3-5 word title summarizing the conflict. (e.g. 'Password Rotation Conflict')")
     confidence: float = Field(description="Confidence score between 0.0 and 1.0 based on the clarity of the conflict", ge=0.0, le=1.0)
-    evidence_spans: List[str] = Field(description="Exact quoted spans from the original text showing the contradiction")
-    business_risk: str = Field(description="Potential business impact if unresolved")
-    recommendation: str = Field(description="Actionable recommendation to resolve the contradiction")
+    evidence_spans: List[Any] = Field(description="Exact quoted spans from the original text showing the contradiction")
+
+    @field_validator('evidence_spans', mode='before')
+    def parse_spans(cls, v):
+        if not isinstance(v, list):
+            return []
+        parsed = []
+        for item in v:
+            if isinstance(item, dict):
+                parsed.append(item.get("span", str(item)))
+            else:
+                parsed.append(str(item))
+        return parsed
 
 class RiskAssessmentResult(BaseModel):
     risk_level: RiskLevel = Field(description="The assessed risk level (low, medium, high)")

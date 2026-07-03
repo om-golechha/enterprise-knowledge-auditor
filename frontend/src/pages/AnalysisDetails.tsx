@@ -19,6 +19,7 @@ export function AnalysisDetails() {
   const [statusOverrides, setStatusOverrides] = useState<Record<number, ReportStatus>>({});
 
   const handleStatusUpdate = useCallback((index: number, newStatus: ReportStatus) => {
+    const previousStatus = statusOverrides[index] || report?.contradictions[index]?.status;
     setStatusOverrides(prev => ({ ...prev, [index]: newStatus }));
     if (!report) return;
     fetch(`${API_BASE_URL}/report/${report.audit_id}/contradiction/${index}/status`, {
@@ -28,8 +29,15 @@ export function AnalysisDetails() {
         'X-API-Key': API_KEY
       },
       body: JSON.stringify({ status: newStatus })
-    }).catch(e => console.error("Failed to update status on server", e));
-  }, [report]);
+    }).then(response => {
+      if (!response.ok) throw new Error('Failed to update status on server');
+    }).catch(e => {
+      console.error("Failed to update status on server", e);
+      if (previousStatus) {
+        setStatusOverrides(prev => ({ ...prev, [index]: previousStatus }));
+      }
+    });
+  }, [report, statusOverrides]);
 
   // --- Early return AFTER all hooks ---
   if (!report) {

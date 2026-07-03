@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { Maximize2, Minimize2, X, GitPullRequest, Search, CheckCircle2, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -27,8 +28,8 @@ const severityColors: Record<string, string> = {
 export const PdfEvidenceViewer: React.FC<PdfEvidenceViewerProps> = ({ report, corpusId, onStatusChange, onClose }) => {
   const [expanded, setExpanded] = useState(false);
   
-  const [scaleA, setScaleA] = useState(1.0);
-  const [scaleB, setScaleB] = useState(1.0);
+  const [scaleA, setScaleA] = useState(1.25);
+  const [scaleB, setScaleB] = useState(1.25);
 
   const [errorA, setErrorA] = useState<Error | null>(null);
   const [errorB, setErrorB] = useState<Error | null>(null);
@@ -54,22 +55,28 @@ export const PdfEvidenceViewer: React.FC<PdfEvidenceViewerProps> = ({ report, co
   const highlightText = useCallback((textItem: { str: string }, targetText: string, colorClass: string) => {
     if (!textItem || !textItem.str) return textItem.str;
     
-    // Very basic highlighting logic for text layer. 
-    // For enterprise production, a robust coordinate-based highlighter is better,
-    // but this suffices for the text layer if exact string matches.
-    const cleanTarget = targetText.trim();
-    if (!cleanTarget) return textItem.str;
+    const cleanTarget = targetText.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+    const cleanItem = textItem.str.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
 
-    // Split target into chunks for better matching across lines
-    const words = cleanTarget.split(' ').filter(w => w.length > 3);
-    if (words.length === 0) return textItem.str;
+    if (!cleanTarget || !cleanItem) return textItem.str;
 
     let highlighted = false;
-    for (const word of words) {
-       if (textItem.str.toLowerCase().includes(word.toLowerCase())) {
-         highlighted = true;
-         break;
-       }
+
+    // 1. Exact substring match (if chunk is reasonably large)
+    if (cleanItem.length > 10 && cleanTarget.includes(cleanItem)) {
+      highlighted = true;
+    } else {
+      // 2. Phrase matching (n-grams) to catch chunks that span sentences
+      const itemWords = cleanItem.split(' ');
+      if (itemWords.length >= 4) {
+        for (let i = 0; i <= itemWords.length - 4; i++) {
+          const phrase = itemWords.slice(i, i + 4).join(' ');
+          if (cleanTarget.includes(phrase)) {
+            highlighted = true;
+            break;
+          }
+        }
+      }
     }
 
     if (highlighted) {
@@ -78,20 +85,18 @@ export const PdfEvidenceViewer: React.FC<PdfEvidenceViewerProps> = ({ report, co
     return textItem.str;
   }, []);
 
-  return (
+  const modalContent = (
     <motion.div 
+      className={`fixed inset-0 z-[99999] flex items-center justify-center bg-background/80 backdrop-blur-sm pointer-events-auto ${expanded ? 'p-0' : 'p-4 sm:p-6'}`}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className={`fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 ${expanded ? 'p-0' : ''}`}
     >
-      <div className="absolute inset-0 bg-background/90 backdrop-blur-md" onClick={onClose} />
-      
       <motion.div 
         initial={{ y: 20, scale: 0.98 }}
         animate={{ y: 0, scale: 1 }}
         exit={{ y: 10, scale: 0.98 }}
-        className={`relative flex flex-col bg-card border border-borderLight shadow-elevated overflow-hidden transition-all duration-200 ${expanded ? 'w-full h-full rounded-none' : 'w-[95vw] h-[90vh] max-w-[1400px] rounded-xl'}`}
+        className={`relative flex flex-col bg-card border border-borderLight shadow-elevated overflow-hidden transition-all duration-200 ${expanded ? 'w-screen h-screen max-w-none rounded-none border-0' : 'w-[95vw] h-[90vh] max-w-[1400px] rounded-xl'}`}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-borderLight bg-surface shrink-0">
@@ -122,11 +127,14 @@ export const PdfEvidenceViewer: React.FC<PdfEvidenceViewerProps> = ({ report, co
           </div>
         </div>
 
-        {/* Main Content Area: 2-Column Split */}
-        <div className="flex-1 flex overflow-hidden bg-background relative">
+        {/* Main Content Area: Flex Column */}
+        <div className="flex-1 flex flex-col overflow-hidden bg-background relative">
           
-          {/* Left: Source A */}
-          <div className="flex-1 flex flex-col border-r border-borderLight min-w-0">
+          {/* Top: 2-Column PDF Viewers */}
+          <div className="flex-1 flex min-h-0 relative">
+            
+            {/* Left: Source A */}
+            <div className="flex-1 flex flex-col border-r border-borderLight min-w-0">
             <div className="px-4 py-3 bg-surface border-b border-borderLight flex items-center justify-between shrink-0 shadow-sm z-10">
               <div className="flex items-center gap-3">
                 <span className="px-2 py-1 bg-accent/10 text-accent border border-accent/20 rounded text-[10px] font-mono font-bold uppercase tracking-wider">Source A</span>
@@ -179,7 +187,7 @@ export const PdfEvidenceViewer: React.FC<PdfEvidenceViewerProps> = ({ report, co
                 Original Claim
               </h4>
               <p className="text-sm text-primary p-3 bg-background rounded-md border border-borderLight font-mono leading-relaxed overflow-y-auto max-h-24">
-                {report.evidence_span_a}
+                {report.claim_a}
               </p>
             </div>
           </div>
@@ -238,14 +246,16 @@ export const PdfEvidenceViewer: React.FC<PdfEvidenceViewerProps> = ({ report, co
                 Conflicting Claim
               </h4>
               <p className="text-sm text-primary p-3 bg-background rounded-md border border-borderLight font-mono leading-relaxed overflow-y-auto max-h-24">
-                {report.evidence_span_b}
+                {report.claim_b}
               </p>
             </div>
           </div>
 
-          {/* Floating Rationale and Action Panel */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-2xl bg-elevated border border-borderStrong shadow-md rounded-xl p-5 flex flex-col gap-4 z-20">
-            <div className="flex items-start justify-between gap-4">
+          </div>
+
+          {/* Bottom: Docked Rationale and Action Panel */}
+          <div className="border-t border-borderStrong bg-elevated p-5 flex flex-col gap-4 shrink-0 z-20">
+            <div className="flex items-start justify-between gap-4 max-w-5xl mx-auto w-full">
               <div className="flex-1">
                 <h3 className="text-sm font-semibold text-primary mb-2 flex items-center gap-2"><Search size={16} className="text-accent" /> AI Rationale</h3>
                 <p className="text-sm text-primary leading-relaxed bg-background p-3 rounded-md border border-borderLight">
@@ -273,4 +283,6 @@ export const PdfEvidenceViewer: React.FC<PdfEvidenceViewerProps> = ({ report, co
       </motion.div>
     </motion.div>
   );
+
+  return createPortal(modalContent, document.body);
 };
