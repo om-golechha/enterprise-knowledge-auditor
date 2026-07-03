@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class GraphState(TypedDict):
     corpus_id: str
-    vector_store: Any          # VectorStore instance passed from the caller
+    vector_store: VectorStore          # VectorStore instance passed from the caller
     candidates: List[ContradictionCandidate]
     reports: List[ContradictionReport]
     discarded: int

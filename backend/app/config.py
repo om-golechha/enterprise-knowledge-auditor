@@ -16,9 +16,6 @@ class AppConfig(BaseSettings):
     LLM_MODEL: str = "llama-3.1-8b-instant"
     GROQ_API_KEY: str = ""
 
-    # Text Splitting / Chunking
-    CHUNK_SIZE: int = 500
-    CHUNK_OVERLAP: int = 50
 
     # Retrieval Settings
     TOP_K: int = 5

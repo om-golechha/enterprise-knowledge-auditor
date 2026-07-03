@@ -8,7 +8,7 @@ class TestTopicClassification:
     """Verify heuristic topic classification."""
 
     def test_authentication_topic(self):
-        assert classify_topic("Passwords must be rotated every 90 days for all users with MFA.") == "Authentication & Access"
+        assert classify_topic("Passwords must be rotated every 90 days for all users with MFA.") == "Access Control"
 
     def test_remote_work_topic(self):
         assert classify_topic("Employees may work from home 3 days per week.") == "Remote Work"

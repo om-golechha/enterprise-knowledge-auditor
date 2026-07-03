@@ -6,6 +6,28 @@ import { useWorkspace } from '../context/WorkspaceContext';
 import { API_BASE_URL, API_KEY } from '../config';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AnalysisPipeline } from './AnalysisPipeline';
+import type { AuditReport } from '../types';
+
+const ExecutionTimer = React.memo(({ isUploading }: { isUploading: boolean }) => {
+  const [elapsedTime, setElapsedTime] = useState(0);
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (isUploading) {
+      interval = setInterval(() => setElapsedTime(prev => prev + 1), 1000);
+    } else {
+      setElapsedTime(0);
+    }
+    return () => clearInterval(interval);
+  }, [isUploading]);
+
+  return (
+    <div className="flex items-center gap-2 text-xs font-mono font-bold text-accent bg-accent/10 px-3 py-1.5 rounded-full border border-accent/20">
+      <Clock size={14} />
+      <span>{Math.floor(elapsedTime / 60).toString().padStart(2, '0')}:{(elapsedTime % 60).toString().padStart(2, '0')}</span>
+    </div>
+  );
+});
+ExecutionTimer.displayName = 'ExecutionTimer';
 
 export function Dashboard() {
   const [files, setFiles] = useState<File[]>([]);
@@ -32,18 +54,7 @@ export function Dashboard() {
   // Derived Metrics
   const totalDocuments = analyses.reduce((acc, curr) => acc + curr.total_documents, 0);
   const [ingestStats, setIngestStats] = useState<{ claims: number, files: number } | null>(null);
-  const [elapsedTime, setElapsedTime] = useState(0);
 
-  // Timer for execution telemetry
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    if (isUploading) {
-      interval = setInterval(() => setElapsedTime(prev => prev + 1), 1000);
-    } else {
-      setElapsedTime(0);
-    }
-    return () => clearInterval(interval);
-  }, [isUploading]);
 
   const latestHealth = analyses.length > 0 ? analyses[0].health_score : 100;
   const criticalFindings = analyses.reduce((acc, curr) => {
@@ -129,12 +140,12 @@ export function Dashboard() {
         navigate(`/analyses/${reportData.audit_id}`);
       }, 500);
 
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === 'AbortError') {
         setStatusMessage('Analysis cancelled.');
       } else {
         console.error('Audit failed:', error);
-        const msg = error?.message || 'Unknown error';
+        const msg = error instanceof Error ? error.message : 'Unknown error';
         setErrorMessage(`Pipeline failed: ${msg}`);
         setStatusMessage('');
       }
@@ -261,7 +272,7 @@ export function Dashboard() {
                       <div className="pt-8 flex justify-end gap-4 border-t border-borderLight/50 mt-8">
                         <button 
                           onClick={handleCancel}
-                          className="px-5 py-2.5 text-sm text-secondary font-medium hover:text-primary transition-colors"
+                          className="px-5 py-2.5 text-sm text-secondary font-medium hover:text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 rounded-lg transition-colors"
                         >
                           Cancel
                         </button>
@@ -298,10 +309,7 @@ export function Dashboard() {
                       </div>
                       <h2 className="text-sm font-semibold text-primary tracking-wide">Enterprise Pipeline Execution</h2>
                     </div>
-                    <div className="flex items-center gap-2 text-xs font-mono font-bold text-accent bg-accent/10 px-3 py-1.5 rounded-full border border-accent/20">
-                      <Clock size={14} />
-                      <span>{Math.floor(elapsedTime / 60).toString().padStart(2, '0')}:{(elapsedTime % 60).toString().padStart(2, '0')}</span>
-                    </div>
+                    <ExecutionTimer isUploading={isUploading} />
                   </div>
                   
                   {/* Content */}
@@ -510,7 +518,7 @@ const StatCard = React.memo(({ title, value, subtitle, suffix, icon, colorClass 
 StatCard.displayName = 'StatCard';
 
 interface RecentAnalysisCardProps {
-  analysis: any;
+  analysis: AuditReport;
   onClick: () => void;
 }
 

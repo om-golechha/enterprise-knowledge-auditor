@@ -12,18 +12,14 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from app.models import ContradictionCandidate, VerificationResponse, ContradictionReport, RiskLevel, ContradictionResult, ExtractedClaims, RiskAssessmentResult, TopicMatchResult
+from app.models import ContradictionCandidate, VerificationResponse, ContradictionReport, RiskLevel, ContradictionResult, RiskAssessmentResult, TopicMatchResult
 from app.config import config
 from app.llm import get_llm
-from app.prompts import contradiction_verification_prompt, claim_extraction_prompt, risk_assessment_prompt, topic_match_prompt
+from app.prompts import contradiction_verification_prompt, risk_assessment_prompt, topic_match_prompt
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logger = logging.getLogger(__name__)
 
-# Global LLM Executor — kept for future parallel audit use (not used during ingest)
-# llm_executor = ThreadPoolExecutor(max_workers=1)
-
-# Topics for classification removed in favor of LLM extraction
 
 class DocumentIngestor:
     @staticmethod
@@ -112,6 +108,11 @@ class Chunker:
 
         return claim_docs
 
+def classify_topic(text: str) -> str:
+    """Module-level wrapper for the Chunker topic heuristic. Used in tests."""
+    return Chunker.__new__(Chunker)._detect_topic(text)
+
+
 class VectorStore:
     def __init__(self, corpus_id: str):
         self.embeddings = HuggingFaceEmbeddings(model_name=config.EMBEDDING_MODEL)
@@ -119,6 +120,7 @@ class VectorStore:
         os.makedirs(persist_dir, exist_ok=True)
         # Use persistent Chroma for production durability
         self.db = Chroma(
+
             collection_name=f"corpus_{corpus_id}",
             embedding_function=self.embeddings,
             persist_directory=persist_dir
@@ -216,73 +218,54 @@ class EvidenceVerifier:
         # PRE-FILTER: Are they exactly the same subject?
         match_llm = get_llm().with_structured_output(TopicMatchResult)
         match_chain = topic_match_prompt | match_llm
-        try:
-            import time
-            time.sleep(4)
-            from typing import cast
-            match_res = cast(TopicMatchResult, match_chain.invoke({"claim_a": candidate.claim_a, "claim_b": candidate.claim_b}))
-            if not match_res.is_same_subject:
-                logger.info(f"PRE-FILTER REJECTED: {match_res.reasoning}")
-                return True, VerificationResponse(is_contradiction=False), True
-        except Exception as e:
-            logger.warning(f"Topic pre-filter failed, skipping candidate. Error: {e}")
+        
+        from typing import cast
+        match_res = cast(TopicMatchResult, match_chain.invoke({"claim_a": candidate.claim_a, "claim_b": candidate.claim_b}))
+        if not match_res.is_same_subject:
+            logger.info(f"PRE-FILTER REJECTED: {match_res.reasoning}")
             return True, VerificationResponse(is_contradiction=False), True
             
-        import time
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                from typing import cast
-                result = cast(ContradictionResult, chain.invoke({
-                    "claim_a": candidate.claim_a,
-                    "claim_b": candidate.claim_b
-                }))
+        result = cast(ContradictionResult, chain.invoke({
+            "claim_a": candidate.claim_a,
+            "claim_b": candidate.claim_b
+        }))
+        
+        logger.info(f"STAGE 8: Raw LLM response: {result}")
+        
+        resp = VerificationResponse(
+            is_contradiction=result.contradiction,
+            premise_a_summary=result.premise_a_summary,
+            premise_b_summary=result.premise_b_summary,
+            conflict_analysis=result.conflict_analysis,
+            evidence_span_a=result.evidence_spans[0] if result.evidence_spans and len(result.evidence_spans) > 0 else "",
+            evidence_span_b=result.evidence_spans[1] if result.evidence_spans and len(result.evidence_spans) > 1 else "",
+            confidence=result.confidence,
+            rationale=result.conflict_analysis
+        )
+        
+        # We attach the LLM-generated specific title to the response
+        resp.title = result.title if hasattr(result, 'title') else candidate.topic
+        
+        logger.info(f"STAGE 9: Parsed JSON: {resp}")
+        
+        if resp.is_contradiction:
+            # Strict Evidence Validation
+            def normalize(t): return re.sub(r'[^a-z0-9]', '', t.lower())
+            if resp.evidence_span_a and normalize(resp.evidence_span_a) not in normalize(candidate.claim_a):
+                logger.warning(f"Evidence span A mismatched original text. Rejecting candidate. Span: {resp.evidence_span_a}")
+                return True, VerificationResponse(is_contradiction=False), True
+            if resp.evidence_span_b and normalize(resp.evidence_span_b) not in normalize(candidate.claim_b):
+                logger.warning(f"Evidence span B mismatched original text. Rejecting candidate. Span: {resp.evidence_span_b}")
+                return True, VerificationResponse(is_contradiction=False), True
                 
-                logger.info(f"STAGE 8: Raw LLM response: {result}")
-                
-                resp = VerificationResponse(
-                    is_contradiction=result.contradiction,
-                    premise_a_summary=result.premise_a_summary,
-                    premise_b_summary=result.premise_b_summary,
-                    conflict_analysis=result.conflict_analysis,
-                    evidence_span_a=result.evidence_spans[0] if result.evidence_spans and len(result.evidence_spans) > 0 else "",
-                    evidence_span_b=result.evidence_spans[1] if result.evidence_spans and len(result.evidence_spans) > 1 else "",
-                    confidence=result.confidence,
-                    rationale=result.conflict_analysis
-                )
-                
-                # We attach the LLM-generated specific title to the response
-                resp.title = result.title if hasattr(result, 'title') else candidate.topic
-                
-                logger.info(f"STAGE 9: Parsed JSON: {resp}")
-                
-                if resp.is_contradiction:
-                    # Strict Evidence Validation
-                    def normalize(t): return re.sub(r'[^a-z0-9]', '', t.lower())
-                    if resp.evidence_span_a and normalize(resp.evidence_span_a) not in normalize(candidate.claim_a):
-                        logger.warning(f"Evidence span A mismatched original text. Rejecting candidate. Span: {resp.evidence_span_a}")
-                        return True, VerificationResponse(is_contradiction=False), True
-                    if resp.evidence_span_b and normalize(resp.evidence_span_b) not in normalize(candidate.claim_b):
-                        logger.warning(f"Evidence span B mismatched original text. Rejecting candidate. Span: {resp.evidence_span_b}")
-                        return True, VerificationResponse(is_contradiction=False), True
-                        
-                    # Compute strict confidence: heavily reliant on the LLM's own logical confidence
-                    resp.confidence = round(resp.confidence * 100, 1)
-                    
-                    logger.info("STAGE 10: Final contradiction decision: ACCEPTED")
-                    return True, resp, False
-                    
-                logger.info("STAGE 10: Final contradiction decision: REJECTED")
-                return True, resp, False
-                
-            except Exception as e:
-                logger.error(f"Failed to parse LLM verification response (attempt {attempt + 1}/{max_retries}): {e}")
-                if attempt < max_retries - 1:
-                    time.sleep(4 * (2 ** attempt)) # Exponential backoff starting at 4 seconds
-                else:
-                    return False, VerificationResponse(is_contradiction=False), False
-
-        return False, VerificationResponse(is_contradiction=False), False
+            # Compute strict confidence: heavily reliant on the LLM's own logical confidence
+            resp.confidence = round(resp.confidence * 100, 1)
+            
+            logger.info("STAGE 10: Final contradiction decision: ACCEPTED")
+            return True, resp, False
+            
+        logger.info("STAGE 10: Final contradiction decision: REJECTED")
+        return True, resp, False
 
 class RiskScorer:
     @staticmethod

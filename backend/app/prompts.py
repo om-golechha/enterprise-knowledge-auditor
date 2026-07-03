@@ -1,15 +1,5 @@
 from langchain_core.prompts import ChatPromptTemplate
 
-claim_extraction_prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are an expert at information extraction. Extract distinct, factual, and verifiable rules or policies from the following text.\n"
-               "CRITICAL INSTRUCTIONS:\n"
-               "1. You must classify EVERY extracted claim into a category: BUSINESS_POLICY, METADATA, LEGAL_DISCLAIMER, NOISE.\n"
-               "2. For every BUSINESS_POLICY claim, you MUST determine a high-level `topic` and specific `subtopic`.\n"
-               "3. A claim MUST be a complete sentence. If the text says 'Passwords expire 90 days', write 'User passwords must expire every 90 days.'\n"
-               "4. Only extract rules that mandate behavior or define a configuration state."),
-    ("human", "TEXT:\n{chunk_text}")
-])
-
 topic_match_prompt = ChatPromptTemplate.from_messages([
     ("system", "You are a strict logic gate. Your ONLY job is to determine if two policy claims govern the EXACT SAME subject matter, context, and scope.\n"
                "RULES:\n"

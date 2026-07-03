@@ -51,7 +51,7 @@ export const PdfEvidenceViewer: React.FC<PdfEvidenceViewerProps> = ({ report, co
     return `${API_BASE_URL}/documents/${encodedFilename}`;
   };
 
-  const highlightText = useCallback((textItem: any, targetText: string, colorClass: string) => {
+  const highlightText = useCallback((textItem: { str: string }, targetText: string, colorClass: string) => {
     if (!textItem || !textItem.str) return textItem.str;
     
     // Very basic highlighting logic for text layer. 

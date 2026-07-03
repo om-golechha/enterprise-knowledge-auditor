@@ -13,13 +13,6 @@ class ReportStatus(str, Enum):
     RESOLVED = "Resolved"
     IGNORED = "Ignored"
 
-class ClaimClassification(str, Enum):
-    BUSINESS_POLICY = "BUSINESS_POLICY"
-    METADATA = "METADATA"
-    LEGAL_DISCLAIMER = "LEGAL_DISCLAIMER"
-    HEADER = "HEADER"
-    FOOTER = "FOOTER"
-    NOISE = "NOISE"
 
 class ContradictionCandidate(BaseModel):
     """Internal model for passing candidates from Detector to Verifier"""
@@ -81,14 +74,6 @@ class AuditReport(BaseModel):
 class ReportStatusUpdate(BaseModel):
     status: ReportStatus
 
-class ExtractedClaim(BaseModel):
-    topic: str = Field(description="High-level category (e.g. 'Access Control', 'Data Retention')")
-    subtopic: str = Field(description="Specific sub-category (e.g. 'Password Rotation', 'Cloud Backups')")
-    claim_text: str = Field(description="The exact extracted claim text. Must be a complete sentence.")
-    classification: ClaimClassification = Field(description="The classification of the claim")
-
-class ExtractedClaims(BaseModel):
-    claims: List[ExtractedClaim] = Field(description="List of extracted claims from the text.")
 
 class ContradictionResult(BaseModel):
     premise_a_summary: str = Field(description="Objective summary of the rule established by Claim A")

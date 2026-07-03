@@ -40,7 +40,9 @@ app = FastAPI(
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 def get_api_key(api_key: str = Security(api_key_header)):
-    if not config.API_KEY or api_key == config.API_KEY:
+    if not config.API_KEY:
+        raise HTTPException(status_code=500, detail="Server configuration error: API key not set.")
+    if api_key == config.API_KEY:
         return api_key
     raise HTTPException(status_code=403, detail="Could not validate credentials")
 
@@ -108,14 +110,15 @@ def _persist_reports():
         json.dump({k: v.model_dump(mode="json") for k, v in audit_reports.items()}, f)
 
 def _enforce_report_limit() -> None:
-    """Evict the oldest report when over the limit."""
+    """Evict the oldest report and files for the corpus when over the limit."""
     if len(audit_reports) <= config.MAX_REPORTS:
         return
     oldest_key = next(iter(audit_reports))
+    corpus_id = audit_reports[oldest_key].corpus_id
     del audit_reports[oldest_key]
     _persist_reports()
 
-    corpus_dir = os.path.join(UPLOADS_DIR, oldest_key)
+    corpus_dir = os.path.join(UPLOADS_DIR, corpus_id)
     if os.path.isdir(corpus_dir):
         try:
             shutil.rmtree(corpus_dir)
@@ -234,7 +237,6 @@ async def ingest_documents(
             with open(manifest_path, "w") as f:
                 json.dump(manifest, f)
             import traceback; traceback.print_exc(); logger.error(f"Pipeline failed for {filename}: {e}")
-            raise HTTPException(status_code=500, detail=f"Pipeline aborted: File '{filename}' failed to process. Reason: {e}")
 
     with open(manifest_path, "w") as f:
         json.dump(manifest, f)
