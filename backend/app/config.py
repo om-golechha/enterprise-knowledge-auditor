@@ -22,7 +22,7 @@ class AppConfig(BaseSettings):
     SIMILARITY_THRESHOLD: float = 0.4
 
     # Security & Limits
-    CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
+    CORS_ORIGINS: str = "*"
     MAX_FILE_SIZE_MB: int = 50
     MAX_FILES_PER_REQUEST: int = 20
     MAX_REPORTS: int = 50
