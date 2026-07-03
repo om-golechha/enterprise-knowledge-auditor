@@ -13,8 +13,11 @@ class AppConfig(BaseSettings):
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
 
     # LLM Settings
+    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "groq")
     LLM_MODEL: str = "llama-3.1-8b-instant"
     GROQ_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""
+    OPENAI_API_KEY: str = ""
 
 
     # Retrieval Settings
