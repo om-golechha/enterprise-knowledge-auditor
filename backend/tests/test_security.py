@@ -47,6 +47,14 @@ class TestPromptInjection:
 class TestCorpusIdValidation:
     """Verify corpus_id validation in the API layer."""
 
+    @pytest.fixture(autouse=True)
+    def override_dependency(self):
+        from main import app, get_api_key
+        app.dependency_overrides[get_api_key] = lambda: "test_key"
+        yield
+        app.dependency_overrides.clear()
+
+
     def test_valid_corpus_ids(self):
         from fastapi.testclient import TestClient
         from main import app

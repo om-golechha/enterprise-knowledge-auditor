@@ -15,6 +15,11 @@ from main import app
 
 
 client = TestClient(app)
+from main import get_api_key
+app.dependency_overrides[get_api_key] = lambda: "test_key"
+
+from main import get_api_key
+app.dependency_overrides[get_api_key] = lambda: "test_key"
 
 
 # --------------------------------------------------------------------------
