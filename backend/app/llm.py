@@ -21,10 +21,11 @@ def get_llm() -> ChatGroq:
             "GROQ_API_KEY is not set. Add it to .env or set it as an environment variable."
         )
 
+    # pyrefly: ignore [missing-argument]
     return ChatGroq(
         model_name=config.LLM_MODEL,
         api_key=api_key,
         temperature=0.0,
-        max_retries=2,
+        max_retries=5,
         timeout=30,
     )

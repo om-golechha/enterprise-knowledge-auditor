@@ -50,15 +50,16 @@ export function Dashboard() {
     return acc + curr.contradictions.filter(c => c.risk_level === 'high' && c.status === 'Open').length;
   }, 0);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+      const newFiles = Array.from(e.target.files);
+      setFiles(prev => [...prev, ...newFiles]);
     }
-  };
+  }, []);
 
-  const removeFile = (index: number) => {
+  const removeFile = React.useCallback((index: number) => {
     setFiles(prev => prev.filter((_, i) => i !== index));
-  };
+  }, []);
 
   const handleAudit = async () => {
     if (files.length === 0) return;
@@ -84,7 +85,14 @@ export function Dashboard() {
         signal: abortControllerRef.current.signal
       });
 
-      if (!ingestResponse.ok) throw new Error('Ingest failed');
+      if (!ingestResponse.ok) {
+        let errorMsg = 'Ingest failed';
+        try {
+          const errorData = await ingestResponse.json();
+          if (errorData?.detail) errorMsg = errorData.detail;
+        } catch (e) {}
+        throw new Error(errorMsg);
+      }
 
       const ingestData = await ingestResponse.json();
       setIngestStats({ claims: ingestData.claims_ingested, files: ingestData.filenames.length });
@@ -104,6 +112,10 @@ export function Dashboard() {
       setStatusMessage('Generating Final Report...');
 
       const reportData = await auditResponse.json();
+      
+      if (reportData.total_documents !== files.length) {
+        throw new Error(`Corrupted Pipeline State: Expected ${files.length} documents, but analyzed ${reportData.total_documents}`);
+      }
       
       const analysisData = {
         ...reportData,
@@ -135,12 +147,12 @@ export function Dashboard() {
     }
   };
 
-  const handleCancel = () => {
+  const handleCancel = React.useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
     setFiles([]);
-  };
+  }, []);
 
   return (
     <motion.div 
@@ -170,11 +182,10 @@ export function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8 stagger-children">
+        <div className="lg:col-span-2 space-y-8">
           {/* Upload Zone */}
-          <div className="glass-elevated rounded-3xl overflow-hidden p-1 relative group">
-            <div className="absolute inset-0 bg-gradient-to-br from-accent/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-            <div className="bg-surface/80 backdrop-blur-xl rounded-[23px] p-8 h-full relative z-10 border border-borderLight shadow-inset-border">
+          <div className="bg-surface rounded-xl border border-borderLight shadow-sm relative group focus-ring overflow-hidden" tabIndex={0} aria-label="Analysis Pipeline Upload Zone">
+            <div className="p-8 h-full relative z-10">
               {!isUploading ? (
                 <>
                   <div className="flex items-center justify-between mb-8">
@@ -192,20 +203,23 @@ export function Dashboard() {
                   </div>
 
                   <div 
-                    className="relative border border-dashed border-borderStrong rounded-2xl p-14 text-center hover:border-accent hover:bg-accent/5 transition-all duration-300 cursor-pointer group/upload overflow-hidden"
+                    className="relative border border-dashed border-borderStrong rounded-xl p-14 text-center hover:border-accent hover:bg-accent/5 transition-all duration-200 cursor-pointer group/upload overflow-hidden focus-ring"
                     onClick={() => fileInputRef.current?.click()}
+                    onKeyDown={(e) => { if (e.key === 'Enter') fileInputRef.current?.click(); }}
+                    tabIndex={0}
+                    role="button"
+                    aria-label="Click or press enter to upload PDF files"
                   >
-                    <div className="absolute inset-0 bg-gradient-to-t from-accent/5 to-transparent opacity-0 group-hover/upload:opacity-100 transition-opacity" />
                     <input
                       type="file"
                       multiple
+                      accept=".pdf,.txt,.docx"
+                      onChange={handleFileChange}
                       className="hidden"
                       ref={fileInputRef}
-                      onChange={handleFileChange}
-                      accept=".pdf,.txt,.docx"
                     />
-                    <div className="w-16 h-16 rounded-2xl bg-elevated border border-borderLight mx-auto flex items-center justify-center mb-6 shadow-card group-hover/upload:scale-110 group-hover/upload:shadow-glow-accent transition-all duration-500 relative">
-                      <Upload size={24} className={files.length > 0 ? "text-accent" : "text-tertiary group-hover/upload:text-accent transition-colors"} />
+                    <div className="w-16 h-16 rounded-2xl bg-elevated border border-borderLight mx-auto flex items-center justify-center mb-6 shadow-card group-hover/upload:scale-105 transition-all duration-200 relative">
+                      <Upload size={24} className={files.length > 0 ? "text-accent" : "text-tertiary group-hover/upload:text-accent transition-colors duration-200"} />
                     </div>
                     <h3 className="text-lg font-medium text-primary mb-2">Upload knowledge documents</h3>
                     <p className="text-sm text-secondary">Select multiple PDFs for cross-referencing and contradiction analysis.</p>
@@ -225,7 +239,7 @@ export function Dashboard() {
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: i * 0.05 }}
                             key={i} 
-                            className="flex items-center justify-between p-4 bg-background/50 border border-borderLight rounded-xl group hover:border-accent/30 transition-colors"
+                            className="flex items-center justify-between p-4 bg-background/50 border border-borderLight rounded-xl group hover:border-accent/30 transition-colors duration-200"
                           >
                             <div className="flex items-center gap-4 overflow-hidden">
                               <div className="w-10 h-10 rounded-lg bg-elevated border border-borderLight flex items-center justify-center text-accent shrink-0 shadow-sm">
@@ -235,7 +249,8 @@ export function Dashboard() {
                             </div>
                             <button 
                               onClick={(e) => { e.stopPropagation(); removeFile(i); }}
-                              className="p-2 text-tertiary hover:text-critical hover:bg-critical/10 rounded-lg transition-colors"
+                              aria-label={`Remove file ${f.name}`}
+                              className="p-2 text-tertiary hover:text-critical hover:bg-critical/10 rounded-lg transition-colors duration-200 focus-ring"
                             >
                               <X size={16} />
                             </button>
@@ -250,11 +265,12 @@ export function Dashboard() {
                         >
                           Cancel
                         </button>
-                        <button 
+                        <button
                           onClick={handleAudit}
-                          className="relative px-8 py-2.5 bg-accent text-white font-medium rounded-xl flex items-center gap-2 shadow-[0_0_20px_rgba(129,140,248,0.4)] hover:shadow-[0_0_30px_rgba(129,140,248,0.6)] hover:bg-accentHover transition-all text-sm overflow-hidden group/btn"
+                          disabled={isUploading}
+                          className="relative px-8 py-2.5 bg-accent text-white font-medium rounded-xl flex items-center gap-2 shadow-[0_0_20px_rgba(129,140,248,0.4)] hover:bg-accentHover transition-all duration-200 text-sm overflow-hidden group/btn focus-ring disabled:opacity-70"
                         >
-                          <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300 ease-out" />
+                          <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-200 ease-out" />
                           <Play size={16} fill="currentColor" className="relative z-10" />
                           <span className="relative z-10">Execute Pipeline</span>
                         </button>
@@ -291,7 +307,7 @@ export function Dashboard() {
                   {/* Content */}
                   <div className="p-8 relative z-10 bg-gradient-to-b from-surface/50 to-background">
                     {/* Status Indicator */}
-                    <div className="mb-10 relative">
+                    <div className="mb-10 relative" aria-live="polite">
                       <motion.p 
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -407,91 +423,129 @@ export function Dashboard() {
                   <p className="text-xs mt-2 opacity-60">Run a new analysis to generate insights.</p>
                 </div>
               ) : (
-                analyses.map((analysis, i) => (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.1 }}
+                analyses.map((analysis) => (
+                  <RecentAnalysisCard 
                     key={analysis.audit_id} 
-                    onClick={() => navigate(`/analyses/${analysis.audit_id}`)}
-                    className="glass p-5 rounded-2xl hover:border-accent/40 transition-all duration-300 cursor-pointer group hover:shadow-glow-accent relative overflow-hidden"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-accent/0 to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="flex items-center justify-between relative z-10">
-                      <div>
-                        <h3 className="text-base font-medium text-primary flex items-center gap-3">
-                          {analysis.name || 'Knowledge Audit Run'}
-                          {analysis.contradictions_found > 0 && (
-                            <span className="px-2.5 py-0.5 rounded-full bg-risk-high/10 border border-risk-high/20 text-risk-high text-[10px] font-bold uppercase tracking-wider">
-                              {analysis.contradictions_found} Risks
-                            </span>
-                          )}
-                        </h3>
-                        <p className="text-xs text-secondary mt-2 font-mono">
-                          {new Date(analysis.timestamp || '').toLocaleString()} <span className="mx-2 opacity-30">|</span> {analysis.total_documents} documents processed
-                        </p>
-                      </div>
-                      <div className="w-10 h-10 rounded-full bg-elevated border border-borderLight flex items-center justify-center group-hover:bg-accent group-hover:border-accent group-hover:text-white transition-all shadow-sm">
-                        <ArrowRight size={16} />
-                      </div>
-                    </div>
-                  </motion.div>
+                    analysis={analysis} 
+                    onClick={() => navigate(`/analyses/${analysis.audit_id}`)} 
+                  />
                 ))
               )}
             </div>
           </div>
         </div>
-
-        <div className="space-y-6 lg:pl-4 stagger-children">
-          {/* Metrics Column */}
-          <div className="glass-elevated rounded-3xl p-8 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-success/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-success/20 transition-colors duration-500" />
-            <div className="flex items-center gap-3 text-secondary mb-6 relative z-10">
-              <div className="w-8 h-8 rounded-lg bg-surface border border-borderLight flex items-center justify-center">
-                <Activity size={16} className="text-success" />
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Overall Health</span>
-            </div>
-            <div className="flex items-end gap-2 relative z-10">
-              <span className="text-5xl font-heading font-bold text-primary tracking-tight">{latestHealth.toFixed(1)}</span>
-              <span className="text-sm font-medium text-success mb-2 bg-success/10 px-2 py-0.5 rounded">/ 100</span>
-            </div>
-            {analyses.length > 0 && (
-              <div className="mt-6 pt-4 border-t border-borderLight/50">
-                <p className="text-xs text-secondary">Based on {totalDocuments} analyzed files.</p>
-              </div>
-            )}
-          </div>
-          
-          <div className="glass-elevated rounded-3xl p-8 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-critical/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-critical/20 transition-colors duration-500" />
-            <div className="flex items-center gap-3 text-secondary mb-6 relative z-10">
-              <div className="w-8 h-8 rounded-lg bg-surface border border-borderLight flex items-center justify-center">
-                <AlertTriangle size={16} className={criticalFindings > 0 ? "text-critical" : ""} />
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Open Findings</span>
-            </div>
-            <div className="flex items-end gap-2 relative z-10">
-              <span className="text-5xl font-heading font-bold text-primary tracking-tight">{criticalFindings}</span>
-              <span className="text-sm font-medium text-secondary mb-2 bg-elevated px-2 py-0.5 rounded border border-borderLight">Critical</span>
-            </div>
-          </div>
-
-          <div className="glass-elevated rounded-3xl p-8 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-accent/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-accent/20 transition-colors duration-500" />
-            <div className="flex items-center gap-3 text-secondary mb-6 relative z-10">
-              <div className="w-8 h-8 rounded-lg bg-surface border border-borderLight flex items-center justify-center">
-                <FileText size={16} className="text-accent" />
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Knowledge Base</span>
-            </div>
-            <div className="flex items-end gap-2 relative z-10">
-              <span className="text-5xl font-heading font-bold text-primary tracking-tight">{totalDocuments}</span>
-              <span className="text-sm font-medium text-secondary mb-2 bg-elevated px-2 py-0.5 rounded border border-borderLight">PDFs</span>
-            </div>
-          </div>
+        <div className="space-y-6 lg:pl-4">
+          <StatCard 
+            title="Overall Health" 
+            value={latestHealth.toFixed(1)} 
+            subtitle={`Based on ${totalDocuments} analyzed files.`} 
+            suffix="/ 100" 
+            icon={<Activity size={16} className="text-success" />} 
+            colorClass="success" 
+          />
+          <StatCard 
+            title="Open Findings" 
+            value={criticalFindings.toString()} 
+            suffix="Critical" 
+            icon={<AlertTriangle size={16} className={criticalFindings > 0 ? "text-critical" : ""} />} 
+            colorClass="critical" 
+          />
+          <StatCard 
+            title="Knowledge Base" 
+            value={totalDocuments.toString()} 
+            suffix="PDFs" 
+            icon={<FileText size={16} className="text-accent" />} 
+            colorClass="accent" 
+          />
         </div>
       </div>
     </motion.div>
   );
 }
+
+// Sub-components wrapped in React.memo for performance
+
+interface StatCardProps {
+  title: string;
+  value: string;
+  subtitle?: string;
+  suffix?: string;
+  icon: React.ReactNode;
+  colorClass: 'success' | 'critical' | 'accent';
+}
+
+const StatCard = React.memo(({ title, value, subtitle, suffix, icon, colorClass }: StatCardProps) => {
+  const colorMap = {
+    success: 'bg-success/10 group-hover:bg-success/20',
+    critical: 'bg-critical/10 group-hover:bg-critical/20',
+    accent: 'bg-accent/10 group-hover:bg-accent/20'
+  };
+
+  return (
+    <div className="glass-elevated rounded-3xl p-8 relative overflow-hidden group" tabIndex={0} aria-label={`${title}: ${value}`}>
+      <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 transition-colors duration-200 ${colorMap[colorClass]}`} />
+      <div className="flex items-center gap-3 text-secondary mb-6 relative z-10">
+        <div className="w-8 h-8 rounded-lg bg-surface border border-borderLight flex items-center justify-center">
+          {icon}
+        </div>
+        <span className="text-[10px] font-bold uppercase tracking-[0.2em]">{title}</span>
+      </div>
+      <div className="flex items-end gap-2 relative z-10">
+        <span className="text-5xl font-heading font-bold text-primary tracking-tight">{value}</span>
+        {suffix && (
+          <span className="text-sm font-medium text-secondary mb-2 bg-elevated px-2 py-0.5 rounded border border-borderLight">
+            {suffix}
+          </span>
+        )}
+      </div>
+      {subtitle && (
+        <div className="mt-6 pt-4 border-t border-borderLight/50">
+          <p className="text-xs text-secondary">{subtitle}</p>
+        </div>
+      )}
+    </div>
+  );
+});
+
+StatCard.displayName = 'StatCard';
+
+interface RecentAnalysisCardProps {
+  analysis: any;
+  onClick: () => void;
+}
+
+const RecentAnalysisCard = React.memo(({ analysis, onClick }: RecentAnalysisCardProps) => (
+  <motion.div 
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.24 }}
+    onClick={onClick}
+    onKeyDown={(e) => { if (e.key === 'Enter') onClick(); }}
+    role="button"
+    tabIndex={0}
+    aria-label={`View analysis report for ${analysis.name || 'Knowledge Audit Run'}`}
+    className="glass p-5 rounded-2xl hover:border-accent/40 transition-all duration-200 cursor-pointer group focus-ring relative overflow-hidden"
+  >
+    <div className="absolute inset-0 bg-gradient-to-r from-accent/0 to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+    <div className="flex items-center justify-between relative z-10">
+      <div>
+        <h3 className="text-base font-medium text-primary flex items-center gap-3">
+          {analysis.name || 'Knowledge Audit Run'}
+          {analysis.contradictions_found > 0 && (
+            <span className="px-2.5 py-0.5 rounded-full bg-risk-high/10 border border-risk-high/20 text-risk-high text-[10px] font-bold uppercase tracking-wider">
+              {analysis.contradictions_found} Risks
+            </span>
+          )}
+        </h3>
+        <p className="text-xs text-secondary mt-2 font-mono">
+          {new Date(analysis.timestamp || '').toLocaleString()} <span className="mx-2 opacity-30">|</span> {analysis.total_documents} documents processed
+        </p>
+      </div>
+      <div className="w-10 h-10 rounded-full bg-elevated border border-borderLight flex items-center justify-center group-hover:bg-accent group-hover:border-accent group-hover:text-white transition-all duration-200 shadow-sm">
+        <ArrowRight size={16} />
+      </div>
+    </div>
+  </motion.div>
+));
+
+RecentAnalysisCard.displayName = 'RecentAnalysisCard';

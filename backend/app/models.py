@@ -37,11 +37,18 @@ class ContradictionCandidate(BaseModel):
 class VerificationResponse(BaseModel):
     """Structured output expected from the LLM."""
     is_contradiction: bool
+    premise_a_summary: str = ""
+    premise_b_summary: str = ""
+    conflict_analysis: str = ""
     evidence_span_a: str = ""
     evidence_span_b: str = ""
     confidence: float = Field(0.0, ge=0.0, le=100.0)
     rationale: str = ""
     title: str = ""
+
+class TopicMatchResult(BaseModel):
+    is_same_subject: bool = Field(description="True if both claims govern the EXACT SAME subject matter/context.")
+    reasoning: str = Field(description="Explanation of why they share or do not share the exact same context.")
 
 class ContradictionReport(BaseModel):
     """Final output schema for verified contradictions."""
@@ -75,18 +82,22 @@ class ReportStatusUpdate(BaseModel):
     status: ReportStatus
 
 class ExtractedClaim(BaseModel):
-    claim_text: str = Field(description="The exact extracted claim text")
-    classification: ClaimClassification = Field(description="The classification of the claim (e.g., BUSINESS_POLICY, METADATA, NOISE)")
+    topic: str = Field(description="High-level category (e.g. 'Access Control', 'Data Retention')")
+    subtopic: str = Field(description="Specific sub-category (e.g. 'Password Rotation', 'Cloud Backups')")
+    claim_text: str = Field(description="The exact extracted claim text. Must be a complete sentence.")
+    classification: ClaimClassification = Field(description="The classification of the claim")
 
 class ExtractedClaims(BaseModel):
     claims: List[ExtractedClaim] = Field(description="List of extracted claims from the text.")
 
 class ContradictionResult(BaseModel):
-    contradiction: bool = Field(description="True if a contradiction is detected, False otherwise")
+    premise_a_summary: str = Field(description="Objective summary of the rule established by Claim A")
+    premise_b_summary: str = Field(description="Objective summary of the rule established by Claim B")
+    conflict_analysis: str = Field(description="Logical analysis of whether these two rules are mutually exclusive")
+    contradiction: bool = Field(description="True ONLY if the rules are mutually exclusive AND govern the exact same context")
     title: str = Field(description="A short, specific 3-5 word title summarizing the conflict. (e.g. 'Password Rotation Conflict')")
-    confidence: float = Field(description="Confidence score between 0.0 and 1.0", ge=0.0, le=1.0)
+    confidence: float = Field(description="Confidence score between 0.0 and 1.0 based on the clarity of the conflict", ge=0.0, le=1.0)
     evidence_spans: List[str] = Field(description="Exact quoted spans from the original text showing the contradiction")
-    explanation: str = Field(description="Concise explanation comparing the policies. Do not use generic AI phrases.")
     business_risk: str = Field(description="Potential business impact if unresolved")
     recommendation: str = Field(description="Actionable recommendation to resolve the contradiction")
 

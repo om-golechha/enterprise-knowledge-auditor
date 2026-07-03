@@ -175,44 +175,69 @@ async def ingest_documents(
 
     corpus_dir = os.path.join(UPLOADS_DIR, corpus_id)
     os.makedirs(corpus_dir, exist_ok=True)
+    manifest_path = os.path.join(corpus_dir, "manifest.json")
+    manifest = {
+        "expected": len(files),
+        "files": {}
+    }
 
     max_bytes = config.MAX_FILE_SIZE_MB * 1024 * 1024
 
     for file in files:
         filename = file.filename or "unknown.pdf"
+        try:
 
-        # --- Extension validation ---
-        ext = os.path.splitext(filename)[1].lower()
-        if ext not in ALLOWED_EXTENSIONS:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unsupported file type '{ext}'. Only PDF files are accepted.",
-            )
+            # --- Extension validation ---
+            ext = os.path.splitext(filename)[1].lower()
+            if ext not in ALLOWED_EXTENSIONS:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Unsupported file type '{ext}'. Only PDF files are accepted.",
+                )
 
-        filenames.append(filename)
+            filenames.append(filename)
 
-        # Save file securely in chunks to prevent OOM DoS attacks
-        file_path = _safe_path(corpus_id, filename)
-        size = 0
-        with open(file_path, "wb") as f:
-            while chunk := await file.read(1024 * 1024):
-                size += len(chunk)
-                if size > max_bytes:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"File '{filename}' exceeds {config.MAX_FILE_SIZE_MB}MB limit."
-                    )
-                f.write(chunk)
+            # Save file securely in chunks to prevent OOM DoS attacks
+            file_path = _safe_path(corpus_id, filename)
+            size = 0
+            with open(file_path, "wb") as f:
+                while chunk := await file.read(1024 * 1024):
+                    size += len(chunk)
+                    if size > max_bytes:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"File '{filename}' exceeds {config.MAX_FILE_SIZE_MB}MB limit."
+                        )
+                    f.write(chunk)
 
-        docs = await run_in_threadpool(DocumentIngestor.load_pdf, file_path, f"{corpus_id}/{filename}")
+            docs = await run_in_threadpool(DocumentIngestor.load_pdf, file_path, f"{corpus_id}/{filename}")
 
-        # Sanitize extracted text against prompt injection
-        for doc in docs:
-            doc.page_content = sanitize_text(doc.page_content)
+            # Sanitize extracted text against prompt injection
+            for doc in docs:
+                doc.page_content = sanitize_text(doc.page_content)
 
-        claim_docs = await run_in_threadpool(chunker.process_and_extract_claims, docs)
-        await run_in_threadpool(store.add_documents, claim_docs)
-        ingested_chunks += len(claim_docs)
+            claim_docs = await run_in_threadpool(chunker.process_and_extract_claims, docs)
+            await run_in_threadpool(store.add_documents, claim_docs)
+            ingested_chunks += len(claim_docs)
+            
+            manifest["files"][filename] = {
+                "parsed": True,
+                "claims": len(claim_docs),
+                "error": None
+            }
+        except Exception as e:
+            manifest["files"][filename] = {
+                "parsed": False,
+                "claims": 0,
+                "error": str(e)
+            }
+            with open(manifest_path, "w") as f:
+                json.dump(manifest, f)
+            import traceback; traceback.print_exc(); logger.error(f"Pipeline failed for {filename}: {e}")
+            raise HTTPException(status_code=500, detail=f"Pipeline aborted: File '{filename}' failed to process. Reason: {e}")
+
+    with open(manifest_path, "w") as f:
+        json.dump(manifest, f)
 
     return {
         "status": "success",
@@ -253,7 +278,7 @@ async def run_audit(corpus_id: str, api_key: str = Depends(get_api_key)):
     total_chunks = store.count()
     health_score = max(0.0, 100.0 - (len(verified) * 5.0))
 
-    # Count unique source documents
+    # Count unique source documents (fallback if manifest is missing)
     all_docs = store.get_all_documents()
     unique_doc_ids = {
         doc.metadata.get("document_id", "")
@@ -261,11 +286,20 @@ async def run_audit(corpus_id: str, api_key: str = Depends(get_api_key)):
         if doc.metadata.get("document_id")
     }
 
+    manifest_path = os.path.join(UPLOADS_DIR, corpus_id, "manifest.json")
+    expected_docs = 0
+    if os.path.exists(manifest_path):
+        with open(manifest_path, "r") as f:
+            manifest = json.load(f)
+            expected_docs = manifest.get("expected", 0)
+
+    total_docs = expected_docs if expected_docs > 0 else len(unique_doc_ids)
+
     audit_id = str(uuid.uuid4())
     report = AuditReport(
         audit_id=audit_id,
         corpus_id=corpus_id,
-        total_documents=len(unique_doc_ids),
+        total_documents=total_docs,
         total_claims_extracted=total_chunks,
         candidates_checked=len(candidates),
         contradictions_found=len(verified),

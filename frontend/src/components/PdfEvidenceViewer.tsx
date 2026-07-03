@@ -26,7 +26,6 @@ const severityColors: Record<string, string> = {
 
 export const PdfEvidenceViewer: React.FC<PdfEvidenceViewerProps> = ({ report, corpusId, onStatusChange, onClose }) => {
   const [expanded, setExpanded] = useState(false);
-  const [note, setNote] = useState('');
   
   const [scaleA, setScaleA] = useState(1.0);
   const [scaleB, setScaleB] = useState(1.0);
@@ -92,7 +91,7 @@ export const PdfEvidenceViewer: React.FC<PdfEvidenceViewerProps> = ({ report, co
         initial={{ y: 20, scale: 0.98 }}
         animate={{ y: 0, scale: 1 }}
         exit={{ y: 10, scale: 0.98 }}
-        className={`relative flex flex-col bg-card border border-borderLight shadow-elevated overflow-hidden transition-all duration-300 ${expanded ? 'w-full h-full rounded-none' : 'w-[95vw] h-[90vh] max-w-[1400px] rounded-xl'}`}
+        className={`relative flex flex-col bg-card border border-borderLight shadow-elevated overflow-hidden transition-all duration-200 ${expanded ? 'w-full h-full rounded-none' : 'w-[95vw] h-[90vh] max-w-[1400px] rounded-xl'}`}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-borderLight bg-surface shrink-0">
@@ -114,17 +113,17 @@ export const PdfEvidenceViewer: React.FC<PdfEvidenceViewerProps> = ({ report, co
           </div>
           
           <div className="flex items-center gap-2">
-            <button onClick={() => setExpanded(!expanded)} className="p-2.5 text-tertiary hover:text-primary rounded-lg hover:bg-elevated transition-colors border border-transparent hover:border-borderLight">
+            <button aria-label={expanded ? "Minimize viewer" : "Maximize viewer"} onClick={() => setExpanded(!expanded)} className="p-2.5 text-tertiary hover:text-primary rounded-lg hover:bg-elevated transition-colors border border-transparent hover:border-borderLight focus-ring">
               {expanded ? <Minimize2 size={18} strokeWidth={2} /> : <Maximize2 size={18} strokeWidth={2} />}
             </button>
-            <button onClick={onClose} className="p-2.5 text-tertiary hover:text-primary rounded-lg hover:bg-elevated transition-colors border border-transparent hover:border-borderLight">
+            <button aria-label="Close viewer" onClick={onClose} className="p-2.5 text-tertiary hover:text-primary rounded-lg hover:bg-elevated transition-colors border border-transparent hover:border-borderLight focus-ring">
               <X size={18} strokeWidth={2} />
             </button>
           </div>
         </div>
 
-        {/* Main Content Area */}
-        <div className="flex-1 flex overflow-hidden bg-background">
+        {/* Main Content Area: 2-Column Split */}
+        <div className="flex-1 flex overflow-hidden bg-background relative">
           
           {/* Left: Source A */}
           <div className="flex-1 flex flex-col border-r border-borderLight min-w-0">
@@ -135,9 +134,9 @@ export const PdfEvidenceViewer: React.FC<PdfEvidenceViewerProps> = ({ report, co
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex items-center bg-elevated rounded-md border border-borderLight">
-                  <button onClick={() => setScaleA(s => Math.max(0.5, s - 0.25))} className="p-1.5 text-tertiary hover:text-primary"><ZoomOut size={14}/></button>
+                  <button aria-label="Zoom out document A" onClick={() => setScaleA(s => Math.max(0.5, s - 0.25))} className="p-1.5 text-tertiary hover:text-primary focus-ring rounded-l-md"><ZoomOut size={14}/></button>
                   <span className="text-xs font-mono w-10 text-center text-secondary">{Math.round(scaleA * 100)}%</span>
-                  <button onClick={() => setScaleA(s => Math.min(2.5, s + 0.25))} className="p-1.5 text-tertiary hover:text-primary"><ZoomIn size={14}/></button>
+                  <button aria-label="Zoom in document A" onClick={() => setScaleA(s => Math.min(2.5, s + 0.25))} className="p-1.5 text-tertiary hover:text-primary focus-ring rounded-r-md"><ZoomIn size={14}/></button>
                 </div>
                 <div className="flex items-center bg-elevated rounded-md border border-borderLight px-2 py-1">
                    <span className="text-xs text-secondary font-medium">Page {report.page_a}</span>
@@ -175,18 +174,18 @@ export const PdfEvidenceViewer: React.FC<PdfEvidenceViewerProps> = ({ report, co
               </div>
             </div>
             
-            <div className="p-5 bg-surface border-t border-borderLight shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-10">
-              <h4 className="text-xs font-bold text-secondary uppercase tracking-widest mb-3 flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]" /> Original Claim
+            <div className="p-4 bg-surface border-t border-borderLight shrink-0 z-10">
+              <h4 className="text-xs font-bold text-secondary uppercase tracking-widest mb-2">
+                Original Claim
               </h4>
-              <p className="text-sm text-primary p-4 bg-background rounded-lg border border-borderLight font-mono leading-relaxed overflow-y-auto max-h-32 shadow-inset-border">
+              <p className="text-sm text-primary p-3 bg-background rounded-md border border-borderLight font-mono leading-relaxed overflow-y-auto max-h-24">
                 {report.evidence_span_a}
               </p>
             </div>
           </div>
 
-          {/* Center: Source B */}
-          <div className="flex-1 flex flex-col border-r border-borderLight min-w-0">
+          {/* Right: Source B */}
+          <div className="flex-1 flex flex-col min-w-0">
             <div className="px-4 py-3 bg-surface border-b border-borderLight flex items-center justify-between shrink-0 shadow-sm z-10">
               <div className="flex items-center gap-3">
                 <span className="px-2 py-1 bg-critical/10 text-critical border border-critical/20 rounded text-[10px] font-mono font-bold uppercase tracking-wider">Source B</span>
@@ -194,9 +193,9 @@ export const PdfEvidenceViewer: React.FC<PdfEvidenceViewerProps> = ({ report, co
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex items-center bg-elevated rounded-md border border-borderLight">
-                  <button onClick={() => setScaleB(s => Math.max(0.5, s - 0.25))} className="p-1.5 text-tertiary hover:text-primary"><ZoomOut size={14}/></button>
+                  <button aria-label="Zoom out document B" onClick={() => setScaleB(s => Math.max(0.5, s - 0.25))} className="p-1.5 text-tertiary hover:text-primary focus-ring rounded-l-md"><ZoomOut size={14}/></button>
                   <span className="text-xs font-mono w-10 text-center text-secondary">{Math.round(scaleB * 100)}%</span>
-                  <button onClick={() => setScaleB(s => Math.min(2.5, s + 0.25))} className="p-1.5 text-tertiary hover:text-primary"><ZoomIn size={14}/></button>
+                  <button aria-label="Zoom in document B" onClick={() => setScaleB(s => Math.min(2.5, s + 0.25))} className="p-1.5 text-tertiary hover:text-primary focus-ring rounded-r-md"><ZoomIn size={14}/></button>
                 </div>
                 <div className="flex items-center bg-elevated rounded-md border border-borderLight px-2 py-1">
                    <span className="text-xs text-secondary font-medium">Page {report.page_b}</span>
@@ -234,57 +233,35 @@ export const PdfEvidenceViewer: React.FC<PdfEvidenceViewerProps> = ({ report, co
               </div>
             </div>
             
-            <div className="p-5 bg-surface border-t border-borderLight shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-10">
-              <h4 className="text-xs font-bold text-secondary uppercase tracking-widest mb-3 flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-critical shadow-[0_0_8px_rgba(239,68,68,0.8)]" /> Conflicting Claim
+            <div className="p-4 bg-surface border-t border-borderLight shrink-0 z-10">
+              <h4 className="text-xs font-bold text-secondary uppercase tracking-widest mb-2">
+                Conflicting Claim
               </h4>
-              <p className="text-sm text-primary p-4 bg-background rounded-lg border border-borderLight font-mono leading-relaxed overflow-y-auto max-h-32 shadow-inset-border">
+              <p className="text-sm text-primary p-3 bg-background rounded-md border border-borderLight font-mono leading-relaxed overflow-y-auto max-h-24">
                 {report.evidence_span_b}
               </p>
             </div>
           </div>
 
-          {/* Right: Review Panel */}
-          <div className="w-[340px] shrink-0 bg-surface flex flex-col">
-            <div className="p-6 border-b border-borderLight">
-              <h3 className="text-sm font-semibold text-primary mb-4 flex items-center gap-2"><Search size={16} className="text-accent" /> AI Rationale</h3>
-              <div className="bg-elevated p-4 rounded-xl border border-borderLight shadow-sm">
-                <p className="text-sm text-primary leading-relaxed">
+          {/* Floating Rationale and Action Panel */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-2xl bg-elevated border border-borderStrong shadow-md rounded-xl p-5 flex flex-col gap-4 z-20">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-primary mb-2 flex items-center gap-2"><Search size={16} className="text-accent" /> AI Rationale</h3>
+                <p className="text-sm text-primary leading-relaxed bg-background p-3 rounded-md border border-borderLight">
                   {report.rationale}
                 </p>
               </div>
-              
-              <div className="mt-6 space-y-3 p-4 bg-background rounded-xl border border-borderLight shadow-inset-border">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-secondary font-medium">Confidence Score</span>
-                  <span className="text-primary font-bold font-mono bg-elevated px-2 py-0.5 rounded border border-borderLight">{report.confidence.toFixed(1)}%</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-secondary font-medium">Computed Severity</span>
-                  <span className={`${severityColors[report.risk_level]} font-bold capitalize bg-elevated px-2 py-0.5 rounded border border-borderLight`}>{report.risk_level}</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-6 flex-1 flex flex-col">
-              <h3 className="text-sm font-semibold text-primary mb-3">Reviewer Notes</h3>
-              <textarea 
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Document your compliance decision..."
-                className="w-full flex-1 bg-background border border-borderLight rounded-xl p-4 text-sm text-primary placeholder:text-tertiary focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent resize-none mb-6 shadow-inset-border"
-              />
-              
-              <div className="space-y-3 shrink-0">
+              <div className="w-48 shrink-0 flex flex-col gap-2">
                 <button 
                   onClick={() => { handleStatusUpdate('Resolved'); onClose(); }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-background rounded-lg text-sm font-semibold hover:bg-gray-200 transition-colors shadow-sm"
+                  className="w-full flex items-center justify-center gap-2 py-2 bg-primary text-background rounded-md text-sm font-semibold hover:bg-gray-200 transition-colors focus-ring"
                 >
                   <CheckCircle2 size={16} strokeWidth={2.5} /> Mark as Resolved
                 </button>
                 <button 
                   onClick={() => { handleStatusUpdate('Ignored'); onClose(); }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-elevated border border-borderLight text-secondary rounded-lg text-sm font-medium hover:text-primary hover:bg-elevatedHover transition-colors"
+                  className="w-full flex items-center justify-center gap-2 py-2 bg-transparent border border-borderStrong text-secondary rounded-md text-sm font-medium hover:text-primary hover:bg-surface transition-colors focus-ring"
                 >
                   Ignore Finding
                 </button>

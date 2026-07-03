@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GradientOrb } from '../AnimatedPrimitives';
+
 
 export function Sidebar() {
   
@@ -14,13 +14,7 @@ export function Sidebar() {
 
   return (
     <aside className="w-[260px] border-r border-borderLight glass flex flex-col h-screen flex-shrink-0 z-10 transition-all relative overflow-hidden">
-      {/* Ambient background orb */}
-      <GradientOrb 
-        size={200} 
-        color1="rgba(99, 102, 241, 0.06)" 
-        color2="rgba(139, 92, 246, 0.03)"
-        className="-top-20 -right-20"
-      />
+
       
       {/* Logo with entrance animation */}
       <motion.div 

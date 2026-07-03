@@ -43,11 +43,6 @@
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* Beautiful subtle mesh gradient background */
-    background-image: 
-      radial-gradient(at 0% 0%, rgba(var(--accent) / 0.15) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(var(--success) / 0.1) 0px, transparent 50%);
-    background-attachment: fixed;
     min-height: 100vh;
   }
 
@@ -65,45 +60,17 @@
 
 @layer utilities {
   .glass {
-    @apply backdrop-blur-2xl bg-surface/60 border border-borderLight shadow-card;
+    @apply bg-surface border border-borderLight shadow-sm;
   }
   .glass-elevated {
-    @apply backdrop-blur-3xl bg-elevated/70 border border-borderLight shadow-elevated;
+    @apply bg-elevated border border-borderStrong shadow-md;
   }
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-br from-white via-zinc-200 to-zinc-500;
+    @apply text-primary;
   }
-  
-  /* Animated gradient background */
-  .aurora-bg {
-    background: linear-gradient(
-      -45deg,
-      rgba(129, 140, 248, 0.15),
-      rgba(192, 132, 252, 0.1),
-      rgba(96, 165, 250, 0.15),
-      rgba(129, 140, 248, 0.08)
-    );
-    background-size: 400% 400%;
-    animation: aurora 10s ease infinite;
-  }
-  
-  /* Accent glow effect */
-  .glow-accent {
-    box-shadow: 
-      0 0 20px -5px rgba(129, 140, 248, 0.4),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
-  }
-
-  /* Noise texture overlay for depth */
-  .noise-overlay::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    opacity: 0.04;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 1;
-    mix-blend-mode: overlay;
+  /* Focus ring for accessibility */
+  .focus-ring {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
 }
 
@@ -128,34 +95,7 @@
   background: rgba(255, 255, 255, 0.25);
 }
 
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slide-up {
-  from { 
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Stagger children animation helper */
-.stagger-children > * {
-  opacity: 0;
-  animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-.stagger-children > *:nth-child(1) { animation-delay: 0.05s; }
-.stagger-children > *:nth-child(2) { animation-delay: 0.1s; }
-.stagger-children > *:nth-child(3) { animation-delay: 0.15s; }
-.stagger-children > *:nth-child(4) { animation-delay: 0.2s; }
-.stagger-children > *:nth-child(5) { animation-delay: 0.25s; }
-
 /* Smooth page transition */
 main {
-  animation: fade-in 0.4s ease-out;
+  @apply animate-fade-in;
 }

@@ -18,7 +18,7 @@ interface AnimatedCounterProps {
 export const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
   value,
   decimals = 0,
-  duration = 1.5,
+  duration = 0.24,
   className = '',
   prefix = '',
   suffix = '',
@@ -105,7 +105,7 @@ export const ProgressRing: React.FC<ProgressRingProps> = ({
           strokeDasharray={circumference}
           initial={{ strokeDashoffset: circumference }}
           animate={isInView ? { strokeDashoffset: offset } : {}}
-          transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+          transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1], delay: 0 }}
           style={{ filter: `drop-shadow(0 0 6px ${glowColor})` }}
         />
       </svg>
@@ -177,111 +177,7 @@ export const MagneticCard: React.FC<MagneticCardProps> = ({
   );
 };
 
-// ─── Animated Gradient Orb ──────────────────────────────────────────────────
-// Decorative morphing background orb
-interface GradientOrbProps {
-  color1?: string;
-  color2?: string;
-  size?: number;
-  className?: string;
-}
 
-export const GradientOrb: React.FC<GradientOrbProps> = ({
-  color1 = 'rgba(99, 102, 241, 0.15)',
-  color2 = 'rgba(139, 92, 246, 0.1)',
-  size = 300,
-  className = '',
-}) => (
-  <motion.div
-    className={`absolute rounded-full blur-3xl pointer-events-none ${className}`}
-    style={{
-      width: size,
-      height: size,
-      background: `radial-gradient(circle, ${color1}, ${color2}, transparent 70%)`,
-    }}
-    animate={{
-      scale: [1, 1.2, 1],
-      opacity: [0.5, 0.8, 0.5],
-      rotate: [0, 180, 360],
-      borderRadius: ['60% 40% 30% 70%/60% 30% 70% 40%', '30% 60% 70% 40%/50% 60% 30% 60%', '60% 40% 30% 70%/60% 30% 70% 40%'],
-    }}
-    transition={{
-      duration: 8,
-      ease: 'easeInOut',
-      repeat: Infinity,
-    }}
-  />
-);
-
-// ─── Particle Field ─────────────────────────────────────────────────────────
-// Floating ambient particles
-interface ParticleFieldProps {
-  count?: number;
-  color?: string;
-}
-
-export const ParticleField: React.FC<ParticleFieldProps> = ({
-  count = 20,
-  color = 'rgba(99, 102, 241, 0.3)',
-}) => {
-  const particles = Array.from({ length: count }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    size: Math.random() * 3 + 1,
-    duration: Math.random() * 4 + 3,
-    delay: Math.random() * 2,
-  }));
-
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {particles.map(p => (
-        <motion.div
-          key={p.id}
-          className="absolute rounded-full"
-          style={{
-            left: `${p.x}%`,
-            top: `${p.y}%`,
-            width: p.size,
-            height: p.size,
-            backgroundColor: color,
-          }}
-          animate={{
-            y: [0, -20, 0],
-            x: [0, Math.random() * 10 - 5, 0],
-            opacity: [0, 0.8, 0],
-            scale: [0, 1, 0],
-          }}
-          transition={{
-            duration: p.duration,
-            delay: p.delay,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
-      ))}
-    </div>
-  );
-};
-
-// ─── Scan Line Effect ───────────────────────────────────────────────────────
-export const ScanLine: React.FC<{ className?: string }> = ({ className = '' }) => (
-  <motion.div
-    className={`absolute left-0 right-0 h-px pointer-events-none ${className}`}
-    style={{
-      background: 'linear-gradient(90deg, transparent, rgba(99,102,241,0.5), transparent)',
-    }}
-    animate={{
-      top: ['0%', '100%'],
-      opacity: [0, 1, 1, 0],
-    }}
-    transition={{
-      duration: 3,
-      repeat: Infinity,
-      ease: 'linear',
-    }}
-  />
-);
 
 // ─── Reveal on Scroll ───────────────────────────────────────────────────────
 interface RevealProps {
@@ -324,7 +220,7 @@ export const Reveal: React.FC<RevealProps> = ({
         filter: 'blur(0px)',
       } : {}}
       transition={{
-        duration: 0.6,
+        duration: 0.24,
         delay,
         ease: [0.22, 1, 0.36, 1],
       }}
@@ -381,8 +277,8 @@ export const StatusDot: React.FC<StatusDotProps> = ({ status, size = 8 }) => (
     {status !== 'idle' && (
       <motion.span
         className={`absolute inline-flex h-full w-full rounded-full ${statusColorMap[status]} opacity-75`}
-        animate={{ scale: [1, 2], opacity: [0.75, 0] }}
-        transition={{ duration: 1.5, repeat: Infinity }}
+        animate={{ scale: [1, 1.5], opacity: [0.75, 0] }}
+        transition={{ duration: 1, repeat: Infinity }}
         style={{ width: size, height: size }}
       />
     )}

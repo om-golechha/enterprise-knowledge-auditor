@@ -12,43 +12,22 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from app.models import ContradictionCandidate, VerificationResponse, ContradictionReport, RiskLevel, ContradictionResult, ExtractedClaims, RiskAssessmentResult
+from app.models import ContradictionCandidate, VerificationResponse, ContradictionReport, RiskLevel, ContradictionResult, ExtractedClaims, RiskAssessmentResult, TopicMatchResult
 from app.config import config
 from app.llm import get_llm
-from app.prompts import contradiction_verification_prompt, claim_extraction_prompt, risk_assessment_prompt
+from app.prompts import contradiction_verification_prompt, claim_extraction_prompt, risk_assessment_prompt, topic_match_prompt
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logger = logging.getLogger(__name__)
 
-# Global LLM Executor to bound exotic energy requests and prevent API overloads
-llm_executor = ThreadPoolExecutor(max_workers=15)
+# Global LLM Executor — kept for future parallel audit use (not used during ingest)
+# llm_executor = ThreadPoolExecutor(max_workers=1)
 
-# Topics for classification
-TOPICS = {
-    "Authentication & Access": ["password", "mfa", "login", "authentication", "access", "auth", "sso", "credentials"],
-    "Remote Work": ["remote", "work from home", "telecommute", "hybrid"],
-    "Data Retention": ["retention", "backup", "archive", "delete", "destroy", "records"],
-    "Incident Response": ["incident", "breach", "response", "emergency", "outage"],
-    "Change Management": ["change", "approval", "deploy", "release", "cab"],
-    "Cloud & Infrastructure": ["cloud", "aws", "azure", "gcp", "kubernetes", "infrastructure"]
-}
-
-def classify_topic(text: str) -> str:
-    """Heuristic topic classification based on keywords."""
-    text_lower = text.lower()
-    best_topic = "General Policy"
-    max_matches = 0
-    
-    for topic, keywords in TOPICS.items():
-        matches = sum(1 for kw in keywords if kw in text_lower)
-        if matches > max_matches:
-            max_matches = matches
-            best_topic = topic
-            
-    return best_topic
+# Topics for classification removed in favor of LLM extraction
 
 class DocumentIngestor:
     @staticmethod
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     def load_pdf(file_path: str, doc_id: str) -> List[Document]:
         """Extracts text and metadata from a PDF using LangChain."""
         logger.info(f"STAGE 1: Raw extracted text from PDF: {file_path}")
@@ -75,33 +54,62 @@ class Chunker:
             separators=["\n\n", "\n", ". ", " "]
         )
 
+    # Keyword-based topic heuristic — zero API calls, runs in-process
+    _TOPIC_KEYWORDS: Dict[str, List[str]] = {
+        "Access Control": ["password", "mfa", "authentication", "login", "credential", "privileged", "access", "account", "session", "sso", "ldap", "okta"],
+        "Data Security": ["encryption", "aes", "tls", "ssl", "data at rest", "data in transit", "key rotation", "pki", "certificate"],
+        "Remote Work": ["remote", "vpn", "work from home", "wfh", "off-site", "hybrid", "telecommute"],
+        "Cloud & Infrastructure": ["cloud", "aws", "azure", "gcp", "s3", "ec2", "iam", "bucket", "vm", "container", "kubernetes", "terraform"],
+        "Change Management": ["change", "cab", "release", "deployment", "rollback", "approval", "ticket", "jira", "patch", "update"],
+        "Data Retention": ["retention", "backup", "archive", "purge", "disposal", "gdpr", "delete", "log retention"],
+        "Incident Response": ["incident", "breach", "sla", "severity", "escalation", "on-call", "alerting", "siem", "soc"],
+        "Vendor Management": ["vendor", "third-party", "supplier", "contractor", "due diligence", "sow", "procurement"],
+        "HR Policy": ["employee", "onboarding", "offboarding", "termination", "probation", "hr", "hiring", "background check", "pto", "leave"],
+        "Compliance": ["audit", "compliance", "sox", "hipaa", "iso", "pci", "gdpr", "regulatory", "control", "framework"],
+    }
+
+    def _detect_topic(self, text: str) -> str:
+        """Fast keyword-scan to assign a topic to a chunk — no LLM needed."""
+        lower = text.lower()
+        best_topic, best_count = "General Policy", 0
+        for topic, keywords in self._TOPIC_KEYWORDS.items():
+            count = sum(1 for kw in keywords if kw in lower)
+            if count > best_count:
+                best_topic, best_count = topic, count
+        return best_topic
+
     def process_and_extract_claims(self, docs: List[Document]) -> List[Document]:
         """
-        Splits docs into semantic chunks, extracts verifiable business claims via heuristic filtering, and classifies topics.
-        Bypasses LLM for extraction to achieve <1 minute total pipeline execution time.
+        Splits docs into semantic chunks and tags each chunk with a heuristic topic.
+        No LLM calls are made here — the LLM is reserved for the audit phase only.
+        This keeps ingest fast (seconds, not hours).
         """
-        logger.info(f"STAGE 2: Chunking and Extracting claims (Optimized Heuristic)")
+        logger.info("STAGE 2: Chunking and tagging claims (heuristic, zero-LLM)")
         chunks = self.splitter.split_documents(docs)
         claim_docs = []
-        
-        policy_keywords = ["must", "shall", "required", "policy", "mandatory", "ensure", "always", "never", "prohibited", "responsible", "will", "should", "may not", "authorized", "compliance"]
-        
+
         for chunk in chunks:
             clean_text = re.sub(r'\s+', ' ', chunk.page_content).strip()
             if len(clean_text) < 50:
                 continue
-                
-            # Fast heuristic filter: only treat chunks likely to contain business policies as claims
-            if not any(kw in clean_text.lower() for kw in policy_keywords):
-                continue
-                
-            topic = classify_topic(clean_text)
+
+            topic = self._detect_topic(clean_text)
             new_meta = chunk.metadata.copy()
             new_meta["claim_id"] = str(uuid.uuid4())
             new_meta["topic"] = topic
-            logger.info(f"STAGE 3: Topic classification - Chunk ID: {new_meta['claim_id']} -> Topic: {topic}")
+            new_meta["subtopic"] = "General"
+            logger.info(f"STAGE 3: Tagged chunk {new_meta['claim_id']} -> {topic}")
             claim_docs.append(Document(page_content=clean_text, metadata=new_meta))
-            
+
+        # Sentinel: ensure at least one doc so the corpus is marked as indexed
+        if not claim_docs and docs:
+            logger.info("STAGE 3: No usable chunks found. Adding sentinel.")
+            sentinel_meta = docs[0].metadata.copy()
+            sentinel_meta["claim_id"] = str(uuid.uuid4())
+            sentinel_meta["topic"] = "NO_CONTENT_FOUND"
+            sentinel_meta["subtopic"] = "Sentinel"
+            claim_docs.append(Document(page_content="[NO_CONTENT_FOUND]", metadata=sentinel_meta))
+
         return claim_docs
 
 class VectorStore:
@@ -205,6 +213,21 @@ class EvidenceVerifier:
         logger.info(f"Claim A: {candidate.claim_a}")
         logger.info(f"Claim B: {candidate.claim_b}")
         
+        # PRE-FILTER: Are they exactly the same subject?
+        match_llm = get_llm().with_structured_output(TopicMatchResult)
+        match_chain = topic_match_prompt | match_llm
+        try:
+            import time
+            time.sleep(4)
+            from typing import cast
+            match_res = cast(TopicMatchResult, match_chain.invoke({"claim_a": candidate.claim_a, "claim_b": candidate.claim_b}))
+            if not match_res.is_same_subject:
+                logger.info(f"PRE-FILTER REJECTED: {match_res.reasoning}")
+                return True, VerificationResponse(is_contradiction=False), True
+        except Exception as e:
+            logger.warning(f"Topic pre-filter failed, skipping candidate. Error: {e}")
+            return True, VerificationResponse(is_contradiction=False), True
+            
         import time
         max_retries = 3
         for attempt in range(max_retries):
@@ -219,10 +242,13 @@ class EvidenceVerifier:
                 
                 resp = VerificationResponse(
                     is_contradiction=result.contradiction,
+                    premise_a_summary=result.premise_a_summary,
+                    premise_b_summary=result.premise_b_summary,
+                    conflict_analysis=result.conflict_analysis,
                     evidence_span_a=result.evidence_spans[0] if result.evidence_spans and len(result.evidence_spans) > 0 else "",
                     evidence_span_b=result.evidence_spans[1] if result.evidence_spans and len(result.evidence_spans) > 1 else "",
                     confidence=result.confidence,
-                    rationale=result.explanation
+                    rationale=result.conflict_analysis
                 )
                 
                 # We attach the LLM-generated specific title to the response
@@ -240,9 +266,8 @@ class EvidenceVerifier:
                         logger.warning(f"Evidence span B mismatched original text. Rejecting candidate. Span: {resp.evidence_span_b}")
                         return True, VerificationResponse(is_contradiction=False), True
                         
-                    # Compute deterministic confidence
-                    computed_confidence = (candidate.cosine_similarity * 0.4) + (resp.confidence * 0.6)
-                    resp.confidence = round(computed_confidence * 100, 1)
+                    # Compute strict confidence: heavily reliant on the LLM's own logical confidence
+                    resp.confidence = round(resp.confidence * 100, 1)
                     
                     logger.info("STAGE 10: Final contradiction decision: ACCEPTED")
                     return True, resp, False

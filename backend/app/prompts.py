@@ -1,28 +1,38 @@
 from langchain_core.prompts import ChatPromptTemplate
 
 claim_extraction_prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are an expert at information extraction. Extract distinct, factual, and verifiable claims from the following text. "
-               "CRITICAL INSTRUCTION: You must classify EVERY extracted claim into a category.\n"
-               "BUSINESS_POLICY: Real enterprise rules, procedures, security, compliance, auth, etc.\n"
-               "METADATA: Document versions, review dates, effective dates, document IDs, author names, copyright notices, watermarks.\n"
-               "LEGAL_DISCLAIMER / HEADER / FOOTER / NOISE: Page numbers, boilerplate footers, generated timestamps.\n"
-               "Your goal is to separate pure business knowledge from document lifecycle metadata. "
-               "Each claim must be a complete sentence that can stand alone without context."),
+    ("system", "You are an expert at information extraction. Extract distinct, factual, and verifiable rules or policies from the following text.\n"
+               "CRITICAL INSTRUCTIONS:\n"
+               "1. You must classify EVERY extracted claim into a category: BUSINESS_POLICY, METADATA, LEGAL_DISCLAIMER, NOISE.\n"
+               "2. For every BUSINESS_POLICY claim, you MUST determine a high-level `topic` and specific `subtopic`.\n"
+               "3. A claim MUST be a complete sentence. If the text says 'Passwords expire 90 days', write 'User passwords must expire every 90 days.'\n"
+               "4. Only extract rules that mandate behavior or define a configuration state."),
     ("human", "TEXT:\n{chunk_text}")
 ])
 
+topic_match_prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a strict logic gate. Your ONLY job is to determine if two policy claims govern the EXACT SAME subject matter, context, and scope.\n"
+               "RULES:\n"
+               "- 'Remote workers use VPN' and 'Office workers use LAN' -> DIFFERENT SUBJECT (Remote vs Office). Return is_same_subject=False.\n"
+               "- 'Emergency changes do not require CAB approval' vs 'Standard changes require CAB approval' -> DIFFERENT SUBJECT (Emergency vs Standard). Return False.\n"
+               "- 'Passwords must be 12 characters' vs 'Passwords must be 8 characters' -> EXACT SAME SUBJECT (Password length). Return True.\n"
+               "Output your reasoning, then the boolean."),
+    ("human", "Claim A: \"{claim_a}\"\nClaim B: \"{claim_b}\"")
+])
+
 contradiction_verification_prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are an expert auditor. Do these two claims contradict each other? "
-               "CRITICAL INSTRUCTION: Two claims are contradictory if they provide conflicting rules, requirements, facts, or policies. "
-               "If they discuss completely unrelated systems or contexts, they do not contradict, but if they discuss the same or overlapping business policies with different requirements, they DO contradict. "
-               "You must provide exact evidence spans from the original text if they do. "
-               "Provide a concise, 1-2 sentence explanation of the contradiction without generic AI phrases. "
-               "If they do not contradict, or if you are uncertain, you must output contradiction=False."),
+    ("system", "You are a Principal Security Auditor. Do these two claims contradict each other?\n"
+               "CRITICAL INSTRUCTIONS:\n"
+               "1. You must first summarize the premise of Claim A and Claim B objectively.\n"
+               "2. Two claims ONLY contradict if they are mutually exclusive. It must be IMPOSSIBLE to comply with both simultaneously.\n"
+               "3. You must provide exact evidence spans from the original text showing the contradiction.\n"
+               "4. If they do not contradict, or if they apply to different scopes/contexts, you MUST output contradiction=False.\n"
+               "5. Confidence must reflect the logical clarity of the conflict (0.0 to 1.0)."),
     ("human", "Claim A: \"{claim_a}\"\nClaim B: \"{claim_b}\"")
 ])
 
 risk_assessment_prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are a risk management expert. Based on the contradiction details, "
+    ("system", "You are a Risk Management Expert. Based on the contradiction details, "
                "assess the business risk. Consider compliance, security, and operational impacts."),
     ("human", "Topic: {topic}\nClaim A: {claim_a}\nClaim B: {claim_b}")
 ])
