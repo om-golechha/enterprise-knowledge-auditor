@@ -188,16 +188,16 @@ async def ingest_documents(
 
     for file in files:
         filename = file.filename or "unknown.pdf"
+        
+        # --- Extension validation ---
+        ext = os.path.splitext(filename)[1].lower()
+        if ext not in ALLOWED_EXTENSIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file type '{ext}'. Only PDF files are accepted.",
+            )
+
         try:
-
-            # --- Extension validation ---
-            ext = os.path.splitext(filename)[1].lower()
-            if ext not in ALLOWED_EXTENSIONS:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Unsupported file type '{ext}'. Only PDF files are accepted.",
-                )
-
             filenames.append(filename)
 
             # Save file securely in chunks to prevent OOM DoS attacks
