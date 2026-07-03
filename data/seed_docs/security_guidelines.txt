@@ -1,0 +1,7 @@
+Enterprise Security Guidelines
+
+1. Data Encryption: All PII must be encrypted at rest using AES-256.
+2. Passwords: Passwords must be at least 12 characters and rotated every 90 days.
+3. Third-party APIs: All external API calls must originate from the internal NAT gateway.
+4. Access: Admin access requires multi-factor authentication (MFA).
+5. Code Review: Every PR requires approval from at least two senior engineers.

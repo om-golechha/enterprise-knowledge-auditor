@@ -1,0 +1,17 @@
+fastapi
+uvicorn==0.27.1
+pydantic
+pydantic-settings
+sentence-transformers==2.5.1
+chromadb==0.4.24
+python-dotenv==1.0.1
+python-multipart==0.0.9
+numpy==1.26.4
+langchain-core
+langchain
+langchain-community
+langchain-huggingface
+langchain-chroma
+langchain-groq
+pypdf
+langgraph

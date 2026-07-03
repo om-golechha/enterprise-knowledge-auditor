@@ -1,0 +1,72 @@
+[
+  {
+    "claim_a": "Employees are permitted to work remotely up to 2 days a week.",
+    "claim_b": "employees can work remotely 5 days a week.",
+    "is_contradiction": true
+  },
+  {
+    "claim_a": "All travel expenses must be submitted within 30 days of the trip.",
+    "claim_b": "Travel expenses must be submitted within 15 days of the trip",
+    "is_contradiction": true
+  },
+  {
+    "claim_a": "Employees receive 15 days of PTO per year.",
+    "claim_b": "Employees now receive 20 days of PTO per year.",
+    "is_contradiction": true
+  },
+  {
+    "claim_a": "We have chosen MongoDB as our primary database for user profiles.",
+    "claim_b": "PostgreSQL is now the primary database for user profiles.",
+    "is_contradiction": true
+  },
+  {
+    "claim_a": "Authentication is handled via JWT tokens with a 24-hour expiration.",
+    "claim_b": "The expiration time is strictly set to 1 hour for security.",
+    "is_contradiction": true
+  },
+  {
+    "claim_a": "All microservices communicate via REST over HTTP/1.1.",
+    "claim_b": "Services communicate asynchronously via Kafka events.",
+    "is_contradiction": true
+  },
+  {
+    "claim_a": "Our deployment strategy uses blue-green deployments on AWS ECS.",
+    "claim_b": "Deployments are handled by Kubernetes on AWS EKS.",
+    "is_contradiction": true
+  },
+  {
+    "claim_a": "All PII must be encrypted at rest using AES-256.",
+    "claim_b": "PII data is encrypted at rest using ChaCha20.",
+    "is_contradiction": true
+  },
+  {
+    "claim_a": "Passwords must be at least 12 characters",
+    "claim_b": "User passwords require a minimum of 16 characters.",
+    "is_contradiction": true
+  },
+  {
+    "claim_a": "Every PR requires approval from at least two senior engineers.",
+    "claim_b": "PRs must be approved by one engineer",
+    "is_contradiction": true
+  },
+  {
+    "claim_a": "Core working hours are 10 AM to 3 PM EST.",
+    "claim_b": "We maintain core working hours of 10 AM to 3 PM EST",
+    "is_contradiction": false
+  },
+  {
+    "claim_a": "The caching layer is implemented using Redis.",
+    "claim_b": "The caching layer remains on Redis",
+    "is_contradiction": false
+  },
+  {
+    "claim_a": "Admin access requires multi-factor authentication (MFA).",
+    "claim_b": "Admin access requires hardware security keys (YubiKey) for MFA.",
+    "is_contradiction": false
+  },
+  {
+    "claim_a": "Authentication is handled via JWT tokens with a 24-hour expiration.",
+    "claim_b": "Authentication uses JWT tokens.",
+    "is_contradiction": false
+  }
+]

@@ -1,0 +1,7 @@
+Architecture Decision Record (v1)
+
+We have chosen MongoDB as our primary database for user profiles.
+Authentication is handled via JWT tokens with a 24-hour expiration.
+All microservices communicate via REST over HTTP/1.1.
+Our deployment strategy uses blue-green deployments on AWS ECS.
+The caching layer is implemented using Redis.

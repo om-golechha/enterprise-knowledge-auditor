@@ -1,0 +1,56 @@
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Node
+node_modules/
+dist/
+build/
+.next/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.cover
+*.py,cover
+
+# Environments
+.env
+.env.*
+.venv/
+venv/
+env/
+ENV/
+
+# Caches
+.cache/
+.vector_cache/
+vector_store/
+chroma_db/
+
+# App Data / Generated Files
+uploaded_pdfs/
+uploads/
+temp/
+tmp/
+generated_analysis/
+analysis_outputs/
+*.pdf
+logs/
+*.log
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo

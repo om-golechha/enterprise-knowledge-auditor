@@ -1,0 +1,7 @@
+Architecture Decision Record (v2)
+
+Due to transaction requirements, PostgreSQL is now the primary database for user profiles.
+Authentication uses JWT tokens. The expiration time is strictly set to 1 hour for security.
+Services communicate asynchronously via Kafka events.
+Deployments are handled by Kubernetes on AWS EKS.
+The caching layer remains on Redis to ensure low latency.

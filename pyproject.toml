@@ -1,0 +1,10 @@
+[project]
+name = "enterprise-knowledge-auditor"
+version = "2.1.0"
+description = "AI-powered document contradiction scanner with LangGraph orchestration"
+requires-python = ">=3.11"
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+extraPaths = ["backend"]
