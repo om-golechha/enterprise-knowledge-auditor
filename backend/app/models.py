@@ -79,7 +79,7 @@ class ContradictionResult(BaseModel):
     premise_a_summary: str = Field(description="Objective summary of the rule established by Claim A")
     premise_b_summary: str = Field(description="Objective summary of the rule established by Claim B")
     conflict_analysis: str = Field(description="Logical analysis of whether these two rules are mutually exclusive")
-    contradiction: bool = Field(description="True ONLY if the rules are mutually exclusive AND govern the exact same context")
+    contradiction: bool = Field(description="True if following one rule would cause a person to violate the other in practice")
     title: str = Field(description="A short, specific 3-5 word title summarizing the conflict. (e.g. 'Password Rotation Conflict')")
     confidence: float = Field(description="Confidence score between 0.0 and 1.0 based on the clarity of the conflict", ge=0.0, le=1.0)
     evidence_spans: List[str] = Field(description="Exact quoted spans from the original text showing the contradiction")

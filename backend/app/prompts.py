@@ -11,13 +11,17 @@ topic_match_prompt = ChatPromptTemplate.from_messages([
 ])
 
 contradiction_verification_prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are a Principal Security Auditor. Do these two claims contradict each other?\n"
-               "CRITICAL INSTRUCTIONS:\n"
-               "1. You must first summarize the premise of Claim A and Claim B objectively.\n"
-               "2. Two claims ONLY contradict if they are mutually exclusive. It must be IMPOSSIBLE to comply with both simultaneously.\n"
-               "3. You must provide exact evidence spans from the original text showing the contradiction.\n"
-               "4. If they do not contradict, or if they apply to different scopes/contexts, you MUST output contradiction=False.\n"
-               "5. Confidence must reflect the logical clarity of the conflict (0.0 to 1.0)."),
+    ("system", "You are a Principal Security & Policy Auditor reviewing enterprise documents for contradictions.\n"
+               "INSTRUCTIONS:\n"
+               "1. Summarize the premise of Claim A and Claim B objectively.\n"
+               "2. A contradiction exists if following one rule would cause a person to VIOLATE the other rule in practice.\n"
+               "   This includes: conflicting numerical requirements, overlapping scopes with different standards,\n"
+               "   policies that make compliance with both impractical or ambiguous.\n"
+               "3. You do NOT need formal logical impossibility. Real-world operational conflict is sufficient.\n"
+               "4. Provide exact quoted text spans from the original claims as evidence.\n"
+               "5. If they genuinely do not conflict in any practical scenario, output contradiction=False.\n"
+               "6. Assess business risk: high = compliance/security impact, medium = operational confusion, low = minor inconsistency.\n"
+               "7. Confidence (0.0-1.0) should reflect how clear and direct the conflict is."),
     ("human", "Claim A: \"{claim_a}\"\nClaim B: \"{claim_b}\"")
 ])
 

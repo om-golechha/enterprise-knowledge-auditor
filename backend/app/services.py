@@ -12,11 +12,10 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from app.models import ContradictionCandidate, VerificationResponse, ContradictionReport, RiskLevel, ContradictionResult, RiskAssessmentResult, TopicMatchResult
+from app.models import ContradictionCandidate, VerificationResponse, ContradictionReport, RiskLevel, ContradictionResult, RiskAssessmentResult
 from app.config import config
 from app.llm import get_llm
-from app.prompts import contradiction_verification_prompt, risk_assessment_prompt, topic_match_prompt
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from app.prompts import contradiction_verification_prompt, risk_assessment_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +42,13 @@ class DocumentIngestor:
 
 class Chunker:
     def __init__(self):
-        self.embeddings = HuggingFaceEmbeddings(model_name=config.EMBEDDING_MODEL)
+        import os
+        os.environ["TOKENIZERS_PARALLELISM"] = "false"
+        self.embeddings = HuggingFaceEmbeddings(
+            model_name=config.EMBEDDING_MODEL,
+            model_kwargs={'device': 'cpu'},
+            encode_kwargs={'batch_size': 32}
+        )
         self.splitter = RecursiveCharacterTextSplitter(
             chunk_size=1500,
             chunk_overlap=150,
@@ -115,7 +120,11 @@ def classify_topic(text: str) -> str:
 
 class VectorStore:
     def __init__(self, corpus_id: str):
-        self.embeddings = HuggingFaceEmbeddings(model_name=config.EMBEDDING_MODEL)
+        self.embeddings = HuggingFaceEmbeddings(
+            model_name=config.EMBEDDING_MODEL,
+            model_kwargs={'device': 'cpu'},
+            encode_kwargs={'batch_size': 32}
+        )
         persist_dir = os.path.join(os.path.dirname(__file__), "..", "chroma_db")
         os.makedirs(persist_dir, exist_ok=True)
         # Use persistent Chroma for production durability
@@ -215,16 +224,7 @@ class EvidenceVerifier:
         logger.info(f"Claim A: {candidate.claim_a}")
         logger.info(f"Claim B: {candidate.claim_b}")
         
-        # PRE-FILTER: Are they exactly the same subject?
-        match_llm = get_llm().with_structured_output(TopicMatchResult)
-        match_chain = topic_match_prompt | match_llm
-        
         from typing import cast
-        match_res = cast(TopicMatchResult, match_chain.invoke({"claim_a": candidate.claim_a, "claim_b": candidate.claim_b}))
-        if not match_res.is_same_subject:
-            logger.info(f"PRE-FILTER REJECTED: {match_res.reasoning}")
-            return True, VerificationResponse(is_contradiction=False), True
-            
         result = cast(ContradictionResult, chain.invoke({
             "claim_a": candidate.claim_a,
             "claim_b": candidate.claim_b
@@ -249,16 +249,13 @@ class EvidenceVerifier:
         logger.info(f"STAGE 9: Parsed JSON: {resp}")
         
         if resp.is_contradiction:
-            # Strict Evidence Validation
-            def normalize(t): return re.sub(r'[^a-z0-9]', '', t.lower())
-            if resp.evidence_span_a and normalize(resp.evidence_span_a) not in normalize(candidate.claim_a):
-                logger.warning(f"Evidence span A mismatched original text. Rejecting candidate. Span: {resp.evidence_span_a}")
-                return True, VerificationResponse(is_contradiction=False), True
-            if resp.evidence_span_b and normalize(resp.evidence_span_b) not in normalize(candidate.claim_b):
-                logger.warning(f"Evidence span B mismatched original text. Rejecting candidate. Span: {resp.evidence_span_b}")
-                return True, VerificationResponse(is_contradiction=False), True
+            # Log evidence spans for debugging — but do NOT reject based on them.
+            # LLMs paraphrase; requiring verbatim substring matches kills valid contradictions.
+            if resp.evidence_span_a:
+                logger.info(f"Evidence span A: {resp.evidence_span_a[:80]}...")
+            if resp.evidence_span_b:
+                logger.info(f"Evidence span B: {resp.evidence_span_b[:80]}...")
                 
-            # Compute strict confidence: heavily reliant on the LLM's own logical confidence
             resp.confidence = round(resp.confidence * 100, 1)
             
             logger.info("STAGE 10: Final contradiction decision: ACCEPTED")
