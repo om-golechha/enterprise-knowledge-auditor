@@ -27,7 +27,7 @@ class AppConfig(BaseSettings):
 
     # Retrieval Settings
     TOP_K: int = 5
-    SIMILARITY_THRESHOLD: float = 0.65
+    SIMILARITY_THRESHOLD: float = 0.45
     MAX_CANDIDATES_TO_VERIFY: int = 50
     MIN_SHARED_TERMS: int = 1
 

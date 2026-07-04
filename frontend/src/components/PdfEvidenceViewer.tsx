@@ -6,9 +6,10 @@ import { motion } from 'framer-motion';
 import { API_BASE_URL, API_KEY } from '../config';
 import type { ContradictionReport, ReportStatus } from '../types';
 
-import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url,
+).toString();
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 
@@ -28,8 +29,8 @@ const severityColors: Record<string, string> = {
 export const PdfEvidenceViewer: React.FC<PdfEvidenceViewerProps> = ({ report, corpusId, onStatusChange, onClose }) => {
   const [expanded, setExpanded] = useState(false);
   
-  const [scaleA, setScaleA] = useState(1.25);
-  const [scaleB, setScaleB] = useState(1.25);
+  const [scaleA, setScaleA] = useState(1.0);
+  const [scaleB, setScaleB] = useState(1.0);
 
   const [errorA, setErrorA] = useState<Error | null>(null);
   const [errorB, setErrorB] = useState<Error | null>(null);

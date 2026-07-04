@@ -1,15 +1,25 @@
-from langchain_huggingface import HuggingFaceEmbeddings
-import numpy as np
+import sys
+import asyncio
+from app.services import VectorStore, DocumentIngestor, get_embeddings
+import os
 
-embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-v1 = embeddings.embed_query("Employees may work remotely for up to three days per week.")
-v2 = embeddings.embed_query("Employees are permitted to work remotely for a maximum of two days per week.")
+async def main():
+    corpus_id = "corpus_1783154028018"
+    vs = VectorStore(corpus_id)
+    
+    docs = vs.get_all_documents()
+    print("total docs", len(docs))
+    
+    # query chunks from third.pdf
+    third_docs = [d for d in docs if "third.pdf" in str(d.metadata.get("document_id", ""))]
+    
+    for doc in third_docs:
+        print("\n--- chunk:", doc.page_content[:50], "---")
+        res = vs.similarity_search_with_score(doc.page_content, k=10, filter={"document_id": {"$ne": doc.metadata["document_id"]}})
+        for r, dist in res:
+            sim = 1.0 - (dist/2.0)
+            doc_id = r.metadata.get("document_id")
+            if "third.pdf" not in doc_id:
+                print(f"{doc_id}: sim={sim:.3f} | {r.page_content[:50]}")
 
-score = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
-print("Cosine similarity:", score)
-
-v1 = embeddings.embed_query("Operational system logs generated from application servers, monitoring platforms, infrastructure services, and endpoint devices shall be retained for a minimum of THIRTY (30) DAYS to optimize storage utilization and operational performance.")
-v2 = embeddings.embed_query("Security logs generated from authentication systems, VPN gateways, firewalls, endpoint protection platforms, and cloud infrastructure must be retained for a minimum of THREE HUNDRED SIXTY-FIVE (365) DAYS for auditing, forensic investigation, and regulatory compliance.")
-
-score = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
-print("Log retention similarity:", score)
+asyncio.run(main())
