@@ -11,6 +11,8 @@ contradiction_verification_prompt = ChatPromptTemplate.from_messages([
                "6. The evidence_spans field MUST be an actual JSON array of exactly two STRINGS (e.g. `[\"quote from A\", \"quote from B\"]`), NOT a list of objects and NOT a string.\n"
                "7. You MUST provide a logical explanation in conflict_analysis and a score from 0.0 to 1.0 in confidence.\n"
                "8. CRITICAL: If a claim is missing explicit nouns due to text truncation (e.g. 'are rotated every 12 months' with no subject), assume it refers to the SAME subject as the other claim. However, if BOTH claims have explicit but DIFFERENT nouns (e.g. 'System logs' vs 'Database backups'), they are DIFFERENT subjects.\n"
+               "9. CRITICAL: Analyze the claims comprehensively. If multiple distinct contradictions exist within the text (e.g., differing sick leave days AND differing probation periods), you MUST explicitly call out ALL of them in your conflict_analysis. Do not stop after finding just one discrepancy.\n"
+               "10. CRITICAL: Only report contradictions explicitly present in the text provided. Do NOT claim that a text 'does not specify' a value if that text is merely an excerpt. Focus ONLY on the direct collisions between the explicit text of Claim A and Claim B.\n"
                "\nPositive examples:\n"
                "- A: 'Passwords must be rotated every 180 days.' B: 'Passwords must be rotated every 90 days.' -> same password rotation requirement; contradiction=true.\n"
                "- A: 'Passwords must be rotated every 90 days for privileged users.' B: 'Passwords are rotated every 12 months.' -> conflicting timeframes for an overlapping subject; contradiction=true.\n"

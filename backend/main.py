@@ -304,8 +304,7 @@ async def run_audit(corpus_id: str, api_key: str = Depends(get_api_key)):
     candidates = final_state["candidates"]
 
     # Health score: penalise 5 points per contradiction, floor at 0
-    total_chunks = store.count()
-    health_score = max(0.0, 100.0 - (len(verified) * 5.0))
+    health_score = max(0.0, 100.0 - (len(verified) * 50.0 / max(1, len(candidates))))
 
     # Count unique source documents (fallback if manifest is missing)
     all_docs = store.get_all_documents()

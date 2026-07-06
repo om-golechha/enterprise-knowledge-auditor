@@ -73,8 +73,8 @@ class DocumentIngestor:
 class Chunker:
     def __init__(self):
         self.splitter = RecursiveCharacterTextSplitter(
-            chunk_size=400,
-            chunk_overlap=50,
+            chunk_size=1200,
+            chunk_overlap=200,
             separators=["\n\n", "\n", ". ", " "]
         )
 
