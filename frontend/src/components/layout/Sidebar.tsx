@@ -19,7 +19,7 @@ export function Sidebar() {
         initial={{ width: 260 }}
         animate={{ width: isOpen ? 260 : 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className="flex flex-col h-screen flex-shrink-0 relative overflow-hidden rounded-none bg-white/5 backdrop-blur-xl border-r border-white/10"
+        className="flex flex-col h-screen flex-shrink-0 relative overflow-hidden rounded-none glass glass--refractive border-y-0 border-l-0 border-r border-borderLight/50"
       >
         {/* Logo with entrance animation */}
         <div 

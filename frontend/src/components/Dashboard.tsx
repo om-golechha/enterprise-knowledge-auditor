@@ -195,7 +195,7 @@ export function Dashboard() {
   
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 300, damping: 24 } }
   };
 
   return (
@@ -212,7 +212,7 @@ export function Dashboard() {
                <KnowledgeGlobe />
             </group>
             
-            <EffectComposer disableNormalPass>
+            <EffectComposer>
               <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} intensity={1.5} />
             </EffectComposer>
           </React.Suspense>
@@ -244,7 +244,7 @@ export function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <motion.div variants={itemVariants} className="lg:col-span-2 space-y-6">
             {/* Upload Zone */}
-            <div className="bg-surface/40 backdrop-blur-2xl rounded-2xl border border-white/5 shadow-2xl relative overflow-hidden transition-all duration-300 hover:border-white/10 glow-ambient">
+            <div className="glass glass--refractive relative overflow-hidden transition-all duration-300 hover:border-white/10 glow-ambient">
               <div className="p-8 h-full relative z-10">
                 {!isUploading ? (
                   <>
@@ -511,7 +511,7 @@ const StatCard = React.memo(({ title, value, subtitle, suffix, icon, colorClass 
   };
 
   return (
-    <div className={`bg-surface/40 backdrop-blur-xl border border-white/5 rounded-2xl p-6 relative overflow-hidden group transition-all duration-300 ${glowMap[colorClass]}`} tabIndex={0} aria-label={`${title}: ${value}`}>
+    <div className={`glass glass--refractive p-6 relative overflow-hidden group transition-all duration-300 ${glowMap[colorClass]}`} tabIndex={0} aria-label={`${title}: ${value}`}>
       <div className="flex items-center gap-3 text-zinc-400 mb-5 relative z-10">
         <div className="w-8 h-8 rounded-lg bg-black/20 border border-white/5 flex items-center justify-center">
           {icon}
@@ -548,7 +548,7 @@ const RecentAnalysisCard = React.memo(({ analysis, onClick }: RecentAnalysisCard
     role="button"
     tabIndex={0}
     aria-label={`View analysis report for ${analysis.name || 'Knowledge Audit Run'}`}
-    className="bg-surface/30 backdrop-blur-md p-4 rounded-xl border border-white/5 hover:border-indigo-500/30 hover:bg-white/5 transition-all duration-200 cursor-pointer group flex items-center justify-between"
+    className="glass p-4 hover:border-indigo-500/30 transition-all duration-200 cursor-pointer group flex items-center justify-between"
   >
     <div>
       <h3 className="text-sm font-medium text-white/90 flex items-center gap-2">
