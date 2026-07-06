@@ -79,6 +79,12 @@ class ContradictionResult(BaseModel):
     confidence: float = Field(description="Confidence score between 0.0 and 1.0 based on the clarity of the conflict", ge=0.0, le=1.0)
     evidence_spans: List[Any] = Field(description="Exact quoted spans from the original text showing the contradiction")
 
+    @field_validator('conflict_analysis', mode='before')
+    def parse_conflict_analysis(cls, v):
+        if isinstance(v, list):
+            return " ".join([str(item) for item in v])
+        return str(v)
+
     @field_validator('evidence_spans', mode='before')
     def parse_spans(cls, v):
         if not isinstance(v, list):

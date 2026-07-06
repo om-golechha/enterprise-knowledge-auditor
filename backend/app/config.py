@@ -14,18 +14,17 @@ class AppConfig(BaseSettings):
     EMBEDDING_BATCH_SIZE: int = 32
 
     # LLM Settings
-    LLM_MODEL: str = "llama-3.1-8b-instant"
+    LLM_MODEL: str = "llama3-8b-8192"
     GROQ_API_KEY: str = ""
     LLM_TIMEOUT_SECONDS: int = 20
     LLM_MAX_RETRIES: int = 2
     LLM_MAX_TOKENS: int = 700
     LLM_VERIFY_CONCURRENCY: int = 1
 
-
     # Retrieval Settings
     TOP_K: int = 5
     SIMILARITY_THRESHOLD: float = 0.45
-    MAX_CANDIDATES_TO_VERIFY: int = 50
+    MAX_CANDIDATES_TO_VERIFY: int = 12
     MIN_SHARED_TERMS: int = 1
 
     # Security & Limits
