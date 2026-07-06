@@ -14,11 +14,8 @@ class AppConfig(BaseSettings):
     EMBEDDING_BATCH_SIZE: int = 32
 
     # LLM Settings
-    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "groq")
     LLM_MODEL: str = "llama-3.1-8b-instant"
     GROQ_API_KEY: str = ""
-    GEMINI_API_KEY: str = ""
-    OPENAI_API_KEY: str = ""
     LLM_TIMEOUT_SECONDS: int = 20
     LLM_MAX_RETRIES: int = 2
     LLM_MAX_TOKENS: int = 700

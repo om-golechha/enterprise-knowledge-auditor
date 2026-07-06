@@ -38,10 +38,11 @@ class TestClaimExtraction:
 
         claims = chunker.process_and_extract_claims(docs)
 
-        assert [claim.page_content for claim in claims] == [
-            "Password Rotation: Passwords must be rotated every 180 days.",
-            "MFA: Multi-factor authentication is optional for employees.",
-        ]
+        assert len(claims) == 1
+        assert claims[0].page_content == (
+            "Password Rotation: Passwords must be rotated every 180 days. "
+            "MFA: Multi-factor authentication is optional for employees."
+        )
         assert all(claim.metadata["claim_id"] for claim in claims)
 
 

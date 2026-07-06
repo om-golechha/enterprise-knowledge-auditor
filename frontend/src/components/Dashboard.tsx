@@ -1,12 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, File, Play, X, Activity, AlertTriangle, FileText, BarChart3, ArrowRight, Loader2, CheckCircle2, Clock } from 'lucide-react';
-
 import { useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { API_BASE_URL, API_KEY } from '../config';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AnalysisPipeline } from './AnalysisPipeline';
 import type { AuditReport } from '../types';
+
+import { Canvas } from '@react-three/fiber';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import { KnowledgeGlobe } from './3d/KnowledgeGlobe';
+// Removed FastlaneCity3D and FloatingText3D as per new design
 
 const ExecutionTimer = React.memo(({ isUploading }: { isUploading: boolean }) => {
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -21,7 +25,7 @@ const ExecutionTimer = React.memo(({ isUploading }: { isUploading: boolean }) =>
   }, [isUploading]);
 
   return (
-    <div className="flex items-center gap-2 text-xs font-mono font-bold text-accent bg-accent/10 px-3 py-1.5 rounded-full border border-accent/20">
+    <div className="flex items-center gap-2 text-xs font-mono font-medium text-indigo-400 bg-indigo-500/10 px-3 py-1.5 rounded-full border border-indigo-500/20">
       <Clock size={14} />
       <span>{Math.floor(elapsedTime / 60).toString().padStart(2, '0')}:{(elapsedTime % 60).toString().padStart(2, '0')}</span>
     </div>
@@ -54,7 +58,6 @@ export function Dashboard() {
   // Derived Metrics
   const totalDocuments = analyses.reduce((acc, curr) => acc + curr.total_documents, 0);
   const [ingestStats, setIngestStats] = useState<{ claims: number, files: number } | null>(null);
-
 
   const latestHealth = analyses.length > 0 ? analyses[0].health_score : 100;
   const criticalFindings = analyses.reduce((acc, curr) => {
@@ -181,313 +184,315 @@ export function Dashboard() {
     setFiles([]);
   }, []);
 
+  // Framer Motion variants for staggered intro
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+  
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  };
+
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }} 
-      animate={{ opacity: 1, y: 0 }} 
-      className="max-w-7xl mx-auto p-8 pb-32"
-    >
-      
-      <div className="flex items-center justify-between mb-10">
-        <div>
-          <motion.h1 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="text-3xl font-heading font-bold text-primary tracking-tight"
-          >
-            Dashboard
-          </motion.h1>
-          <motion.p 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-secondary text-sm mt-2 font-medium tracking-wide uppercase"
-          >
-            Enterprise Knowledge Health & Pipeline Status
-          </motion.p>
-        </div>
+    <div className="relative min-h-[calc(100vh-4rem)] w-full overflow-hidden bg-[#0A0A0C]">
+      {/* Abstract 3D Canvas Background */}
+      <div className="absolute inset-0 z-0 opacity-50">
+        <Canvas camera={{ position: [0, 0, 10], fov: 45 }} gl={{ preserveDrawingBuffer: true, antialias: true }}>
+          <React.Suspense fallback={null}>
+            <ambientLight intensity={0.2} />
+            <directionalLight position={[5, 5, 5]} intensity={0.5} />
+            <pointLight position={[0, 0, 0]} intensity={1.5} color="#818CF8" />
+            
+            <group position={[0, -1, -5]}>
+               <KnowledgeGlobe />
+            </group>
+            
+            <EffectComposer disableNormalPass>
+              <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} intensity={1.5} />
+            </EffectComposer>
+          </React.Suspense>
+        </Canvas>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
-          {/* Upload Zone */}
-          <div className="bg-surface rounded-xl border border-borderLight shadow-sm relative group focus-ring overflow-hidden" tabIndex={0} aria-label="Analysis Pipeline Upload Zone">
-            <div className="p-8 h-full relative z-10">
-              {!isUploading ? (
-                <>
-                  <div className="flex items-center justify-between mb-8">
-                    <h2 className="text-xl font-heading font-semibold text-primary flex items-center gap-3">
-                      <span className="w-8 h-8 rounded-full bg-accent/10 text-accent flex items-center justify-center border border-accent/20">
-                        <Activity size={16} />
-                      </span>
-                      New Analysis Pipeline
-                    </h2>
-                    {files.length > 0 && (
-                      <button onClick={handleCancel} className="p-2 text-tertiary hover:text-critical rounded-full hover:bg-critical/10 transition-colors">
-                        <X size={18} strokeWidth={2.5}/>
-                      </button>
-                    )}
-                  </div>
+      {/* Subtle Noise Texture */}
+      <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }}></div>
 
-                  <div 
-                    className="relative border border-dashed border-borderStrong rounded-xl p-14 text-center hover:border-accent hover:bg-accent/5 transition-all duration-200 cursor-pointer group/upload overflow-hidden focus-ring"
-                    onClick={() => fileInputRef.current?.click()}
-                    onKeyDown={(e) => { if (e.key === 'Enter') fileInputRef.current?.click(); }}
-                    tabIndex={0}
-                    role="button"
-                    aria-label="Click or press enter to upload PDF files"
-                  >
-                    <input
-                      type="file"
-                      multiple
-                      accept=".pdf,application/pdf"
-                      onChange={handleFileChange}
-                      className="hidden"
-                      ref={fileInputRef}
-                    />
-                    <div className="w-16 h-16 rounded-2xl bg-elevated border border-borderLight mx-auto flex items-center justify-center mb-6 shadow-card group-hover/upload:scale-105 transition-all duration-200 relative">
-                      <Upload size={24} className={files.length > 0 ? "text-accent" : "text-tertiary group-hover/upload:text-accent transition-colors duration-200"} />
+      {/* 2D UI Overlay */}
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+        className="max-w-6xl mx-auto p-8 pb-32 relative z-10"
+      >
+        <motion.div variants={itemVariants} className="flex flex-col mb-12 w-full items-center justify-center text-center">
+          <p className="text-indigo-400 text-xs tracking-[0.3em] uppercase mb-3 font-semibold animate-pulse">
+            Neural Audit Matrix
+          </p>
+          <h1 className="text-6xl md:text-8xl tracking-tight font-bold mt-12 -mb-6 text-indigo-100 drop-shadow-2xl py-4 leading-[1.2]" style={{ fontFamily: "'Zapfino', 'Apple Chancery', cursive", textShadow: "0 0 20px rgba(99, 102, 241, 0.4)" }}>
+            Sentinel
+          </h1>
+          <h2 className="text-zinc-400 text-lg md:text-xl max-w-2xl font-light">
+            Enterprise Knowledge Auditor. Ensure organizational policy alignment through autonomous structural analysis.
+          </h2>
+        </motion.div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <motion.div variants={itemVariants} className="lg:col-span-2 space-y-6">
+            {/* Upload Zone */}
+            <div className="bg-surface/40 backdrop-blur-2xl rounded-2xl border border-white/5 shadow-2xl relative overflow-hidden transition-all duration-300 hover:border-white/10 glow-ambient">
+              <div className="p-8 h-full relative z-10">
+                {!isUploading ? (
+                  <>
+                    <div className="flex items-center justify-between mb-8">
+                      <h2 className="text-lg font-heading font-medium text-white flex items-center gap-3">
+                        <span className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20">
+                          <Activity size={16} />
+                        </span>
+                        New Analysis Pipeline
+                      </h2>
+                      {files.length > 0 && (
+                        <button onClick={handleCancel} className="p-2 text-zinc-500 hover:text-red-400 rounded-full hover:bg-red-500/10 transition-colors">
+                          <X size={18} strokeWidth={2.5}/>
+                        </button>
+                      )}
                     </div>
-                    <h3 className="text-lg font-medium text-primary mb-2">Upload knowledge documents</h3>
-                    <p className="text-sm text-secondary">Select multiple PDFs for cross-referencing and contradiction analysis.</p>
-                  </div>
 
-                  {files.length > 0 && (
-                    <motion.div 
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      className="mt-8 space-y-4"
+                    <div 
+                      className="relative border border-dashed border-white/10 rounded-xl p-12 text-center hover:border-indigo-400/50 hover:bg-indigo-400/5 transition-all duration-300 cursor-pointer group/upload focus-ring bg-black/20"
+                      onClick={() => fileInputRef.current?.click()}
+                      onKeyDown={(e) => { if (e.key === 'Enter') fileInputRef.current?.click(); }}
+                      tabIndex={0}
+                      role="button"
                     >
-                      <h4 className="text-xs font-bold text-tertiary uppercase tracking-[0.2em] mb-3">Selected Files</h4>
-                      <div className="max-h-[250px] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                        {files.map((f, i) => (
-                          <motion.div 
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: i * 0.05 }}
-                            key={i} 
-                            className="flex items-center justify-between p-4 bg-background/50 border border-borderLight rounded-xl group hover:border-accent/30 transition-colors duration-200"
-                          >
-                            <div className="flex items-center gap-4 overflow-hidden">
-                              <div className="w-10 h-10 rounded-lg bg-elevated border border-borderLight flex items-center justify-center text-accent shrink-0 shadow-sm">
-                                <File size={18} />
-                              </div>
-                              <span className="text-sm font-medium text-primary truncate">{f.name}</span>
-                            </div>
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); removeFile(i); }}
-                              aria-label={`Remove file ${f.name}`}
-                              className="p-2 text-tertiary hover:text-critical hover:bg-critical/10 rounded-lg transition-colors duration-200 focus-ring"
-                            >
-                              <X size={16} />
-                            </button>
-                          </motion.div>
-                        ))}
+                      <input
+                        type="file"
+                        multiple
+                        accept=".pdf,application/pdf"
+                        onChange={handleFileChange}
+                        className="hidden"
+                        ref={fileInputRef}
+                      />
+                      <div className="w-14 h-14 rounded-full bg-elevated border border-white/5 mx-auto flex items-center justify-center mb-5 shadow-lg group-hover/upload:scale-110 group-hover/upload:shadow-indigo-500/20 transition-all duration-300">
+                        <Upload size={22} className={files.length > 0 ? "text-indigo-400" : "text-zinc-500 group-hover/upload:text-indigo-400 transition-colors duration-300"} />
                       </div>
-                      
-                      <div className="pt-8 flex justify-end gap-4 border-t border-borderLight/50 mt-8">
-                        <button 
-                          onClick={handleCancel}
-                          className="px-5 py-2.5 text-sm text-secondary font-medium hover:text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 rounded-lg transition-colors"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={handleAudit}
-                          disabled={isUploading}
-                          className="relative px-8 py-2.5 bg-accent text-white font-medium rounded-xl flex items-center gap-2 shadow-[0_0_20px_rgba(129,140,248,0.4)] hover:bg-accentHover transition-all duration-200 text-sm overflow-hidden group/btn focus-ring disabled:opacity-70"
-                        >
-                          <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-200 ease-out" />
-                          <Play size={16} fill="currentColor" className="relative z-10" />
-                          <span className="relative z-10">Execute Pipeline</span>
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-                </>
-              ) : (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="w-full flex flex-col relative overflow-hidden rounded-2xl border border-borderLight/30 bg-background shadow-2xl"
-                >
-                  <div className="noise-overlay" />
-                  {/* Header */}
-                  <div className="border-b border-borderLight/30 px-6 py-5 flex items-center justify-between bg-surface/80 backdrop-blur-md relative z-10">
-                    <div className="flex items-center gap-3">
-                      <div className="relative flex items-center justify-center w-8 h-8">
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
-                          className="absolute inset-0 rounded-full border-2 border-accent/20 border-t-accent"
-                        />
-                        <Loader2 size={14} className="text-accent" />
-                      </div>
-                      <h2 className="text-sm font-semibold text-primary tracking-wide">Enterprise Pipeline Execution</h2>
+                      <h3 className="text-base font-medium text-white mb-1">Upload knowledge documents</h3>
+                      <p className="text-sm text-zinc-400">Select PDFs for cross-referencing and contradiction analysis.</p>
                     </div>
-                    <ExecutionTimer isUploading={isUploading} />
-                  </div>
-                  
-                  {/* Content */}
-                  <div className="p-8 relative z-10 bg-gradient-to-b from-surface/50 to-background">
-                    {/* Status Indicator */}
-                    <div className="mb-10 relative" aria-live="polite">
-                      <motion.p 
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="text-[10px] text-accent font-bold mb-3 uppercase tracking-[0.3em]"
+
+                    {files.length > 0 && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        className="mt-6 space-y-4"
                       >
-                        Current Operation
-                      </motion.p>
-                      <AnimatePresence mode="wait">
-                        <motion.p 
-                          key={statusMessage || STAGES[currentStage]}
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: 10 }}
-                          className="text-2xl text-primary font-heading font-medium tracking-tight text-gradient"
-                        >
-                          {statusMessage || STAGES[currentStage]}
-                        </motion.p>
-                      </AnimatePresence>
+                        <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Selected Files</h4>
+                        <div className="max-h-[200px] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                          {files.map((f, i) => (
+                            <motion.div 
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: i * 0.05 }}
+                              key={i} 
+                              className="flex items-center justify-between p-3 bg-white/5 backdrop-blur-md border border-white/5 rounded-xl group hover:bg-white/10 transition-colors duration-200"
+                            >
+                              <div className="flex items-center gap-3 overflow-hidden">
+                                <div className="w-8 h-8 rounded-lg bg-black/30 border border-white/5 flex items-center justify-center text-indigo-400 shrink-0">
+                                  <File size={14} />
+                                </div>
+                                <span className="text-sm font-medium text-white/90 truncate">{f.name}</span>
+                              </div>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); removeFile(i); }}
+                                className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/20 rounded-lg transition-colors duration-200"
+                              >
+                                <X size={14} />
+                              </button>
+                            </motion.div>
+                          ))}
+                        </div>
+                        
+                        <div className="pt-6 flex justify-end gap-3 border-t border-white/5 mt-6">
+                          <button 
+                            onClick={handleCancel}
+                            className="px-4 py-2 text-sm text-zinc-400 font-medium hover:text-white rounded-lg transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleAudit}
+                            disabled={isUploading}
+                            className="relative px-6 py-2 bg-indigo-500 text-white font-medium rounded-xl flex items-center gap-2 shadow-lg shadow-indigo-500/25 hover:bg-indigo-400 hover:shadow-indigo-500/40 hover:-translate-y-0.5 transition-all duration-300 text-sm overflow-hidden disabled:opacity-50 disabled:hover:translate-y-0"
+                          >
+                            <Play size={14} fill="currentColor" />
+                            <span>Execute Pipeline</span>
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </>
+                ) : (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="w-full flex flex-col relative overflow-hidden rounded-2xl border border-white/10 bg-black/40 backdrop-blur-3xl shadow-2xl"
+                  >
+                    {/* Header */}
+                    <div className="border-b border-white/5 px-6 py-4 flex items-center justify-between bg-white/5">
+                      <div className="flex items-center gap-3">
+                        <div className="relative flex items-center justify-center w-6 h-6">
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+                            className="absolute inset-0 rounded-full border-2 border-indigo-500/20 border-t-indigo-500"
+                          />
+                          <Loader2 size={12} className="text-indigo-400" />
+                        </div>
+                        <h2 className="text-sm font-medium text-white/90">Enterprise Pipeline Execution</h2>
+                      </div>
+                      <ExecutionTimer isUploading={isUploading} />
                     </div>
                     
-                    {/* Glowing Pulse Background for Active Stage */}
-                    <div className="absolute top-1/3 right-10 w-64 h-64 bg-accent/20 rounded-full blur-[80px] pointer-events-none mix-blend-screen" />
+                    {/* Content */}
+                    <div className="p-8 relative z-10">
+                      {/* Status Indicator */}
+                      <div className="mb-8" aria-live="polite">
+                        <p className="text-[10px] text-indigo-400 font-bold mb-2 uppercase tracking-widest">
+                          Current Operation
+                        </p>
+                        <AnimatePresence mode="wait">
+                          <motion.p 
+                            key={statusMessage || STAGES[currentStage]}
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -5 }}
+                            className="text-xl text-white font-heading font-medium tracking-tight"
+                          >
+                            {statusMessage || STAGES[currentStage]}
+                          </motion.p>
+                        </AnimatePresence>
+                      </div>
 
-                    {/* Real Stats Box (appears after ingest) */}
-                    <AnimatePresence>
-                      {ingestStats && (
-                        <motion.div 
-                          initial={{ opacity: 0, height: 0, y: 20 }}
-                          animate={{ opacity: 1, height: 'auto', y: 0 }}
-                          className="overflow-hidden mb-10"
-                        >
-                          <div className="rounded-2xl border border-accent/20 bg-accent/5 p-6 backdrop-blur-xl relative overflow-hidden">
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
-                            <div className="grid grid-cols-3 gap-6 text-center relative z-10">
-                              <div>
-                                <p className="text-[10px] text-accent font-bold uppercase tracking-[0.2em] mb-2">Docs Parsed</p>
-                                <motion.p 
-                                  initial={{ scale: 0.5 }}
-                                  animate={{ scale: 1 }}
-                                  className="text-3xl font-heading font-semibold text-primary"
-                                >
-                                  {ingestStats.files}
-                                </motion.p>
-                              </div>
-                              <div className="border-l border-r border-accent/10">
-                                <p className="text-[10px] text-accent font-bold uppercase tracking-[0.2em] mb-2">Claims Extracted</p>
-                                <motion.p 
-                                  initial={{ scale: 0.5 }}
-                                  animate={{ scale: 1 }}
-                                  className="text-3xl font-heading font-semibold text-primary"
-                                >
-                                  {ingestStats.claims}
-                                </motion.p>
-                              </div>
-                              <div>
-                                <p className="text-[10px] text-accent font-bold uppercase tracking-[0.2em] mb-2">Vectorization</p>
-                                <p className="text-lg font-semibold text-success flex items-center justify-center gap-2 h-10 mt-1">
-                                  <CheckCircle2 size={20}/> 100%
-                                </p>
+                      {/* Real Stats Box */}
+                      <AnimatePresence>
+                        {ingestStats && (
+                          <motion.div 
+                            initial={{ opacity: 0, height: 0, y: 10 }}
+                            animate={{ opacity: 1, height: 'auto', y: 0 }}
+                            className="overflow-hidden mb-8"
+                          >
+                            <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-5 backdrop-blur-xl relative overflow-hidden">
+                              <div className="grid grid-cols-3 gap-4 text-center">
+                                <div>
+                                  <p className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider mb-1">Docs Parsed</p>
+                                  <p className="text-2xl font-heading font-medium text-white">{ingestStats.files}</p>
+                                </div>
+                                <div className="border-l border-r border-white/5">
+                                  <p className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider mb-1">Claims Extracted</p>
+                                  <p className="text-2xl font-heading font-medium text-white">{ingestStats.claims}</p>
+                                </div>
+                                <div>
+                                  <p className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider mb-1">Vectorization</p>
+                                  <p className="text-base font-medium text-emerald-400 flex items-center justify-center gap-1.5 h-8 mt-0.5">
+                                    <CheckCircle2 size={16}/> 100%
+                                  </p>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
 
-                    {/* 3D Pipeline Visualization */}
-                    <div className="mt-8 relative w-full">
-                      <AnalysisPipeline 
-                        activeStage={currentStage} 
-                        filename={files.length > 0 ? `${files.length} document(s)` : 'Knowledge Corpus'} 
-                      />
+                      <div className="relative w-full">
+                        <AnalysisPipeline 
+                          activeStage={currentStage} 
+                          filename={files.length > 0 ? `${files.length} document(s)` : 'Knowledge Corpus'} 
+                        />
+                      </div>
                     </div>
+                  </motion.div>
+                )}
+              </div>
+            </div>
+
+            {/* Error Banner */}
+            <AnimatePresence>
+              {errorMessage && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -10, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3 backdrop-blur-xl"
+                >
+                  <AlertTriangle size={18} className="text-red-400 mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-red-400">{errorMessage}</p>
+                    <p className="text-xs text-red-400/70 mt-1">Check that the backend is running and try again.</p>
                   </div>
+                  <button onClick={() => setErrorMessage('')} className="p-1.5 text-red-400/50 hover:text-red-400 hover:bg-red-500/20 rounded-md transition-colors">
+                    <X size={14} />
+                  </button>
                 </motion.div>
               )}
-            </div>
-          </div>
+            </AnimatePresence>
 
-          {/* Error Banner */}
-          <AnimatePresence>
-            {errorMessage && (
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-critical/10 border border-critical/30 rounded-2xl p-5 flex items-start gap-4 shadow-lg backdrop-blur-md"
-              >
-                <div className="w-10 h-10 rounded-full bg-critical/20 flex items-center justify-center shrink-0 border border-critical/30">
-                  <AlertTriangle size={20} className="text-critical" />
-                </div>
-                <div className="flex-1 mt-0.5">
-                  <p className="text-sm font-semibold text-critical">{errorMessage}</p>
-                  <p className="text-xs text-secondary mt-1">Check that the backend is running and try again.</p>
-                </div>
-                <button onClick={() => setErrorMessage('')} className="p-2 text-critical/60 hover:text-critical hover:bg-critical/10 rounded-lg transition-colors">
-                  <X size={16} />
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Recent Analyses */}
-          <div className="pt-6">
-            <h2 className="text-[10px] font-bold text-tertiary mb-6 uppercase tracking-[0.2em] ml-2">Recent Audit Reports</h2>
-            <div className="grid grid-cols-1 gap-4">
-              {analyses.length === 0 ? (
-                <div className="p-12 text-center text-tertiary glass rounded-3xl border border-borderLight border-dashed">
-                  <div className="w-16 h-16 rounded-full bg-elevated border border-borderLight mx-auto flex items-center justify-center mb-4">
-                    <BarChart3 size={24} className="opacity-40" />
+            {/* Recent Analyses */}
+            <motion.div variants={itemVariants} className="pt-2">
+              <h2 className="text-[10px] font-bold text-zinc-500 mb-4 uppercase tracking-widest pl-1">Recent Audit Reports</h2>
+              <div className="grid grid-cols-1 gap-3">
+                {analyses.length === 0 ? (
+                  <div className="p-8 text-center text-zinc-500 bg-white/[0.02] border border-white/5 rounded-xl">
+                    <BarChart3 size={20} className="mx-auto mb-3 opacity-50" />
+                    <p className="text-sm">No analyses completed yet.</p>
                   </div>
-                  <p className="text-sm font-medium">No analyses completed yet.</p>
-                  <p className="text-xs mt-2 opacity-60">Run a new analysis to generate insights.</p>
-                </div>
-              ) : (
-                analyses.map((analysis) => (
-                  <RecentAnalysisCard 
-                    key={analysis.audit_id} 
-                    analysis={analysis} 
-                    onClick={() => navigate(`/analyses/${analysis.audit_id}`)} 
-                  />
-                ))
-              )}
-            </div>
-          </div>
+                ) : (
+                  analyses.map((analysis) => (
+                    <RecentAnalysisCard 
+                      key={analysis.audit_id} 
+                      analysis={analysis} 
+                      onClick={() => navigate(`/analyses/${analysis.audit_id}`)} 
+                    />
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+
+          <motion.div variants={itemVariants} className="space-y-4">
+            <StatCard 
+              title="Overall Health" 
+              value={latestHealth.toFixed(1)} 
+              subtitle={`Based on ${totalDocuments} analyzed files.`} 
+              suffix="/ 100" 
+              icon={<Activity size={16} className="text-emerald-400" />} 
+              colorClass="success" 
+            />
+            <StatCard 
+              title="Open Findings" 
+              value={criticalFindings.toString()} 
+              suffix="Critical" 
+              icon={<AlertTriangle size={16} className={criticalFindings > 0 ? "text-red-400" : "text-zinc-400"} />} 
+              colorClass="critical" 
+            />
+            <StatCard 
+              title="Knowledge Base" 
+              value={totalDocuments.toString()} 
+              suffix="PDFs" 
+              icon={<FileText size={16} className="text-indigo-400" />} 
+              colorClass="accent" 
+            />
+          </motion.div>
         </div>
-        <div className="space-y-6 lg:pl-4">
-          <StatCard 
-            title="Overall Health" 
-            value={latestHealth.toFixed(1)} 
-            subtitle={`Based on ${totalDocuments} analyzed files.`} 
-            suffix="/ 100" 
-            icon={<Activity size={16} className="text-success" />} 
-            colorClass="success" 
-          />
-          <StatCard 
-            title="Open Findings" 
-            value={criticalFindings.toString()} 
-            suffix="Critical" 
-            icon={<AlertTriangle size={16} className={criticalFindings > 0 ? "text-critical" : ""} />} 
-            colorClass="critical" 
-          />
-          <StatCard 
-            title="Knowledge Base" 
-            value={totalDocuments.toString()} 
-            suffix="PDFs" 
-            icon={<FileText size={16} className="text-accent" />} 
-            colorClass="accent" 
-          />
-        </div>
-      </div>
-    </motion.div>
+      </motion.div>
+    </div>
   );
 }
 
-// Sub-components wrapped in React.memo for performance
+// Sub-components
 
 interface StatCardProps {
   title: string;
@@ -499,38 +504,36 @@ interface StatCardProps {
 }
 
 const StatCard = React.memo(({ title, value, subtitle, suffix, icon, colorClass }: StatCardProps) => {
-  const colorMap = {
-    success: 'bg-success/10 group-hover:bg-success/20',
-    critical: 'bg-critical/10 group-hover:bg-critical/20',
-    accent: 'bg-accent/10 group-hover:bg-accent/20'
+  const glowMap = {
+    success: 'shadow-[0_0_30px_-10px_rgba(52,211,153,0.15)] group-hover:shadow-[0_0_40px_-10px_rgba(52,211,153,0.25)]',
+    critical: 'shadow-[0_0_30px_-10px_rgba(248,113,113,0.15)] group-hover:shadow-[0_0_40px_-10px_rgba(248,113,113,0.25)]',
+    accent: 'shadow-[0_0_30px_-10px_rgba(129,140,248,0.15)] group-hover:shadow-[0_0_40px_-10px_rgba(129,140,248,0.25)]'
   };
 
   return (
-    <div className="glass-elevated rounded-3xl p-8 relative overflow-hidden group" tabIndex={0} aria-label={`${title}: ${value}`}>
-      <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 transition-colors duration-200 ${colorMap[colorClass]}`} />
-      <div className="flex items-center gap-3 text-secondary mb-6 relative z-10">
-        <div className="w-8 h-8 rounded-lg bg-surface border border-borderLight flex items-center justify-center">
+    <div className={`bg-surface/40 backdrop-blur-xl border border-white/5 rounded-2xl p-6 relative overflow-hidden group transition-all duration-300 ${glowMap[colorClass]}`} tabIndex={0} aria-label={`${title}: ${value}`}>
+      <div className="flex items-center gap-3 text-zinc-400 mb-5 relative z-10">
+        <div className="w-8 h-8 rounded-lg bg-black/20 border border-white/5 flex items-center justify-center">
           {icon}
         </div>
-        <span className="text-[10px] font-bold uppercase tracking-[0.2em]">{title}</span>
+        <span className="text-[10px] font-bold uppercase tracking-widest">{title}</span>
       </div>
-      <div className="flex items-end gap-2 relative z-10">
-        <span className="text-5xl font-heading font-bold text-primary tracking-tight">{value}</span>
+      <div className="flex items-baseline gap-2 relative z-10">
+        <span className="text-4xl font-heading font-bold text-white tracking-tight">{value}</span>
         {suffix && (
-          <span className="text-sm font-medium text-secondary mb-2 bg-elevated px-2 py-0.5 rounded border border-borderLight">
+          <span className="text-xs font-medium text-zinc-500">
             {suffix}
           </span>
         )}
       </div>
       {subtitle && (
-        <div className="mt-6 pt-4 border-t border-borderLight/50">
-          <p className="text-xs text-secondary">{subtitle}</p>
+        <div className="mt-4 pt-4 border-t border-white/5">
+          <p className="text-[11px] text-zinc-500">{subtitle}</p>
         </div>
       )}
     </div>
   );
 });
-
 StatCard.displayName = 'StatCard';
 
 interface RecentAnalysisCardProps {
@@ -539,37 +542,30 @@ interface RecentAnalysisCardProps {
 }
 
 const RecentAnalysisCard = React.memo(({ analysis, onClick }: RecentAnalysisCardProps) => (
-  <motion.div 
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.24 }}
+  <div 
     onClick={onClick}
     onKeyDown={(e) => { if (e.key === 'Enter') onClick(); }}
     role="button"
     tabIndex={0}
     aria-label={`View analysis report for ${analysis.name || 'Knowledge Audit Run'}`}
-    className="glass p-5 rounded-2xl hover:border-accent/40 transition-all duration-200 cursor-pointer group focus-ring relative overflow-hidden"
+    className="bg-surface/30 backdrop-blur-md p-4 rounded-xl border border-white/5 hover:border-indigo-500/30 hover:bg-white/5 transition-all duration-200 cursor-pointer group flex items-center justify-between"
   >
-    <div className="absolute inset-0 bg-gradient-to-r from-accent/0 to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-    <div className="flex items-center justify-between relative z-10">
-      <div>
-        <h3 className="text-base font-medium text-primary flex items-center gap-3">
-          {analysis.name || 'Knowledge Audit Run'}
-          {analysis.contradictions_found > 0 && (
-            <span className="px-2.5 py-0.5 rounded-full bg-risk-high/10 border border-risk-high/20 text-risk-high text-[10px] font-bold uppercase tracking-wider">
-              {analysis.contradictions_found} Risks
-            </span>
-          )}
-        </h3>
-        <p className="text-xs text-secondary mt-2 font-mono">
-          {new Date(analysis.timestamp || '').toLocaleString()} <span className="mx-2 opacity-30">|</span> {analysis.total_documents} documents processed
-        </p>
-      </div>
-      <div className="w-10 h-10 rounded-full bg-elevated border border-borderLight flex items-center justify-center group-hover:bg-accent group-hover:border-accent group-hover:text-white transition-all duration-200 shadow-sm">
-        <ArrowRight size={16} />
-      </div>
+    <div>
+      <h3 className="text-sm font-medium text-white/90 flex items-center gap-2">
+        {analysis.name || 'Knowledge Audit Run'}
+        {analysis.contradictions_found > 0 && (
+          <span className="px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/20 text-red-400 text-[9px] font-bold uppercase tracking-wider">
+            {analysis.contradictions_found} Risks
+          </span>
+        )}
+      </h3>
+      <p className="text-[11px] text-zinc-500 mt-1 font-mono">
+        {new Date(analysis.timestamp || '').toLocaleString()} <span className="mx-1.5 opacity-30">|</span> {analysis.total_documents} docs
+      </p>
     </div>
-  </motion.div>
+    <div className="w-8 h-8 rounded-full bg-black/20 border border-white/5 flex items-center justify-center group-hover:bg-indigo-500 group-hover:border-indigo-500 group-hover:text-white text-zinc-500 transition-all duration-200">
+      <ArrowRight size={14} />
+    </div>
+  </div>
 ));
-
 RecentAnalysisCard.displayName = 'RecentAnalysisCard';

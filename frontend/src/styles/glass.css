@@ -1,0 +1,57 @@
+/* Tier 1 — Base glass (default, all browsers) */
+.theme-glass .glass {
+  background: var(--glass-tint);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+  isolation: isolate;
+  contain: layout style;
+}
+
+.theme-glass .glass::before {
+  /* specular highlight, top edge only, matches Apple's motion-linked highlight without JS cost */
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, var(--glass-highlight) 0%, transparent 40%);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Tier 2 — Refraction enhancement (Chromium only, feature-detected) */
+@supports (backdrop-filter: url(#x)) {
+  .theme-glass .glass--refractive {
+    backdrop-filter: url(#glass-distortion) blur(4px) saturate(var(--glass-saturate));
+  }
+}
+
+/* Fallback for solid mode */
+.theme-solid .glass,
+.theme-solid .glass--refractive {
+  background: rgb(var(--surface));
+  border: 1px solid rgba(var(--border-strong));
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+}
+
+/* Accessibility overrides */
+@media (prefers-reduced-transparency: reduce) {
+  .glass, .glass--refractive { 
+    backdrop-filter: none !important; 
+    -webkit-backdrop-filter: none !important;
+    background: rgb(var(--surface)) !important; 
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass, .glass * { animation: none !important; transition: none !important; }
+}
+
+@media (prefers-contrast: more) {
+  .glass, .glass--refractive { 
+    background: rgb(var(--surface)) !important; 
+    border-color: rgba(var(--border-strong)) !important; 
+  }
+}

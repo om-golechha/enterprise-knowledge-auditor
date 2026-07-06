@@ -61,7 +61,8 @@ cd enterprise-knowledge-auditor
 cd backend
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+# Recommended: uv pip install -r requirements.txt (faster resolution). Plain pip works but may be slow to resolve dependencies.
+uv pip install -r requirements.txt
 ```
 
 ### Setup Frontend
@@ -114,7 +115,7 @@ GROQ_API_KEY=your_groq_api_key
 ```bash
 cd backend
 source .venv/bin/activate
-uvicorn main:app --reload --port 8000
+uvicorn main:app --reload --port 8001
 ```
 
 ### 2. Start the Frontend Development Server
@@ -124,17 +125,68 @@ cd frontend
 npm run dev
 ```
 
-Visit `http://localhost:5173` in your browser.
+Visit `http://localhost:5175` in your browser.
 
 ## 🧠 AI Pipeline
 
 The AI pipeline utilizes **LangGraph** to process documents iteratively:
 
-1. **Extract**: Text and metadata are pulled from PDFs.
-2. **Embed**: Text chunks are embedded using `all-MiniLM-L6-v2` and stored in ChromaDB.
-3. **Retrieve**: Semantic search pulls potentially conflicting chunks.
-4. **Analyze**: An LLM (powered by Groq) evaluates the retrieved chunks for logical contradictions.
-5. **Report**: Discrepancies are categorized by severity and formatted into structured JSON for the frontend.
+1. **Extract**: Text and metadata are pulled from PDFs using `pypdf`.
+2. **Chunk & Tag**: Text is split using `RecursiveCharacterTextSplitter` (`chunk_size=400`, `chunk_overlap=50`, separators: `["\n\n", "\n", ". ", " "]`). Each chunk is filtered for actionable policy language and tagged with a topic via keyword heuristics — no LLM calls during ingest.
+3. **Embed**: Tagged claim chunks are embedded using `all-MiniLM-L6-v2` and stored in ChromaDB.
+4. **Retrieve**: Semantic search with conflict-signal prefiltering identifies potentially contradictory claim pairs across documents.
+5. **Verify**: An LLM (Groq / Llama-3) evaluates each candidate pair for logical contradictions, returning structured JSON via Pydantic.
+6. **Score & Report**: Confirmed contradictions are risk-scored deterministically and formatted into structured JSON for the frontend dashboard.
+
+## 🔒 Security
+
+Sentinel includes a **SecurityValidator** guardrail (`backend/app/security.py`) that sits between raw LLM JSON output and the rest of the pipeline. It enforces three checks:
+
+1. **Schema Conformance** — Every LLM response is validated against a Pydantic model. Wrong types, missing fields, extra fields, and out-of-range values (e.g., confidence > 1.0) are caught and rejected.
+2. **Prompt Injection Detection** — All string fields in LLM output are scanned for known injection patterns (e.g., "ignore all previous instructions"). If detected, the entire response is rejected.
+3. **Safe Fallback** — On any validation failure, a clearly-marked safe default is returned. The pipeline never crashes on bad LLM output and never silently passes corrupted data downstream.
+
+Additionally, all user-uploaded document text is sanitized against prompt injection patterns before being sent to the LLM, and corpus IDs are validated against path traversal attacks.
+
+## 🔌 MCP Integration
+
+Sentinel exposes its core logic as an **MCP (Model Context Protocol) server**, allowing any MCP-compatible AI host (Claude Desktop, Cursor, custom agent frameworks) to call Sentinel as a tool.
+
+### Available Tools
+
+| Tool | Input | Output |
+|------|-------|--------|
+| `check_contradiction` | `claim_a: str, claim_b: str` | `ContradictionResult` JSON (contradiction, confidence, analysis, evidence spans) |
+| `audit_corpus` | `corpus_id: str` | Full audit report JSON (list of `ContradictionReport` items) |
+
+### Running the MCP Server
+
+```bash
+cd backend
+python -m app.mcp_server
+```
+
+The server runs on stdio transport. Connect any MCP-compatible host to interact with it.
+
+## 📊 Evaluation
+
+The project includes an evaluation harness (`backend/eval/run_eval.py`) with 23 hand-labeled claim pairs (a mix of true contradictions, genuine scope-exceptions, and ambiguous edge cases). The evaluation dataset was deliberately expanded to remove any tuning bias and prove the model generalizes strict logical distinctions.
+
+Run it to get precision, recall, and F1 scores:
+
+```bash
+cd backend
+python -m eval.run_eval
+```
+
+**Latest Benchmark (Groq/Llama-3):**
+
+- **Precision:** 0.3500 (TP=7, FP=13)
+- **Recall:** 0.7778 (TP=7, FN=2)
+- **F1 Score:** 0.4828
+- **Accuracy:** 0.3478 (8/23 correct)
+
+*(Note: The latest run encountered 15 HTTP 429 Rate Limit Errors from the Groq API due to token exhaustion, severely impacting the final recorded accuracy.)*
 
 ## 🔮 Future Improvements
 

@@ -15,7 +15,7 @@ Groq provides ultra-low latency inference. For Sentinel, we generate dozens of c
 FastAPI is the industry standard for Python ML services. It provides automatic OpenAPI documentation, asynchronous endpoints for non-blocking I/O (essential when making LLM calls), and strict type validation via Pydantic.
 
 ## Why this chunking strategy?
-We use a simple paragraph-based split. In a production enterprise system, a recursive character text splitter with overlap would be used. However, by extracting *atomic claims* from the chunks first, the chunking strategy's importance is reduced. The LLM normalizes the text into claims.
+We use LangChain's `RecursiveCharacterTextSplitter` with `chunk_size=400`, `chunk_overlap=50`, and separator priority `["\n\n", "\n", ". ", " "]`. This splits text at natural boundaries (double newlines first, then single newlines, then sentence boundaries, then words). After splitting, a heuristic claim extractor filters each chunk for actionable policy language (keywords like "must", "required", "prohibited") and tags it with a topic — all without LLM calls. The combination of small overlapping chunks and claim filtering means we catch boundary-spanning rules while keeping the input to the LLM focused on real policy statements.
 
 ## Why structured outputs (Pydantic)?
 LLMs are unpredictable. By forcing the LLM to return strict JSON that maps to Pydantic models (like `VerificationResponse`), we guarantee type safety downstream. It ensures we always get a boolean for `is_contradiction` and a valid enum for `severity`.

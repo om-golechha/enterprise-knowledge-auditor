@@ -1,0 +1,42 @@
+:root {
+  /* Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Menlo", monospace;
+  --text-large-title: 34px;
+  --text-title1: 28px;
+  --text-title2: 22px;
+  --text-title3: 20px;
+  --text-headline: 17px;
+  --text-body: 17px;
+  --text-callout: 16px;
+  --text-subhead: 15px;
+  --text-footnote: 13px;
+  --text-caption: 12px;
+
+  /* Spacing (8pt grid, 4pt subdivisions) */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 24px; --space-6: 32px; --space-7: 48px;
+  --tap-min: 44px;
+
+  /* Shape — continuous-corner approximation */
+  --radius-sm: 10px; --radius-md: 16px; --radius-lg: 22px; --radius-xl: 28px;
+  --radius-pill: 999px;
+
+  /* Semantic colors — light */
+  --color-accent: #007AFF;
+  --color-success: #34C759;
+  --color-danger: #FF3B30;
+  --color-warning: #FF9500;
+  --label: rgba(0,0,0,0.92);
+  --label-secondary: rgba(0,0,0,0.55);
+  --bg-base: #F5F5F7;
+  --bg-elevated: #FFFFFF;
+
+  /* Glass material — dark (macOS Tahoe style transparent glass) */
+  --glass-tint: rgba(18, 18, 22, 0.35); /* Extremely transparent, dark tint */
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-highlight: rgba(255, 255, 255, 0.05); /* Subtle specular highlight */
+  --glass-blur: 40px;
+  --glass-saturate: 160%;
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+}

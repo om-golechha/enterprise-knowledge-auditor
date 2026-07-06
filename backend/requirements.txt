@@ -15,3 +15,4 @@ langchain-chroma
 langchain-groq
 pypdf
 langgraph
+mcp>=1.0.0

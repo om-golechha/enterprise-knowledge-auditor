@@ -4,6 +4,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { AuditReport } from '../../types';
+import { ThemeToggle } from '../ThemeToggle';
 
 export function CommandBar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -46,7 +47,7 @@ export function CommandBar() {
   return (
     <>
       <motion.header 
-        className="h-16 px-6 flex items-center justify-between border-b border-borderLight/50 bg-surface/30 backdrop-blur-2xl sticky top-0 z-20"
+        className="h-16 px-6 flex items-center justify-between sticky top-0 z-20 glass glass--refractive rounded-none border-x-0 border-t-0 border-b border-borderLight/50"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
@@ -93,6 +94,9 @@ export function CommandBar() {
               )}
             </AnimatePresence>
           </motion.div>
+          
+          <ThemeToggle />
+
           <motion.div 
             className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent to-purple-500 flex items-center justify-center text-white font-medium text-xs shadow-glow-accent cursor-pointer"
             whileHover={{ scale: 1.08, boxShadow: '0 0 25px rgba(99,102,241,0.5)' }}
@@ -120,7 +124,7 @@ export function CommandBar() {
               animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
               exit={{ opacity: 0, scale: 0.95, y: -15, filter: 'blur(4px)' }}
               transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              className="relative w-full max-w-2xl bg-surface border border-borderLight rounded-xl shadow-2xl overflow-hidden"
+              className="relative w-full max-w-2xl glass glass--refractive overflow-hidden"
             >
               {/* Animated gradient border */}
               <motion.div 

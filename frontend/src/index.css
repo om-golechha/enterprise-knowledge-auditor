@@ -1,5 +1,7 @@
 @import url('https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800,700,500,400&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap');
+@import './styles/tokens.css';
+@import './styles/glass.css';
 
 @tailwind base;
 @tailwind components;
@@ -21,19 +23,19 @@
     --text-secondary: 161 161 170;/* Zinc 400 */
     --text-tertiary: 113 113 122; /* Zinc 500 */
     
-    /* Semantic Colors */
-    --accent: 129 140 248;        /* Indigo 400 */
-    --accent-hover: 165 180 252;  /* Indigo 300 */
-    --accent-bg: 99 102 241 0.15;
+    /* Semantic Colors - Deep Indigos and Emeralds */
+    --accent: 99 102 241;         /* Indigo 500 */
+    --accent-hover: 129 140 248;  /* Indigo 400 */
+    --accent-bg: 79 70 229 0.15;
     
-    --success: 52 211 153;        /* Emerald 400 */
-    --success-bg: 16 185 129 0.1;
+    --success: 16 185 129;        /* Emerald 500 */
+    --success-bg: 5 150 105 0.1;
     
-    --warning: 251 191 36;        /* Amber 400 */
-    --warning-bg: 245 158 11 0.1;
+    --warning: 245 158 11;        /* Amber 500 */
+    --warning-bg: 217 119 6 0.1;
     
-    --critical: 248 113 113;      /* Red 400 */
-    --critical-bg: 239 68 68 0.1;
+    --critical: 239 68 68;        /* Red 500 */
+    --critical-bg: 220 38 38 0.1;
   }
   
   body {
@@ -59,18 +61,16 @@
 }
 
 @layer utilities {
-  .glass {
-    @apply bg-surface border border-borderLight shadow-sm;
-  }
-  .glass-elevated {
-    @apply bg-elevated border border-borderStrong shadow-md;
-  }
   .text-gradient {
-    @apply text-primary;
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-200 to-indigo-500;
   }
   /* Focus ring for accessibility */
   .focus-ring {
     @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+  /* Elegant ambient glow */
+  .glow-ambient {
+    box-shadow: 0 0 40px -10px rgba(99, 102, 241, 0.4);
   }
 }
 

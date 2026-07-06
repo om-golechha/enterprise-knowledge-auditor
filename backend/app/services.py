@@ -375,12 +375,13 @@ class ContradictionDetector:
         
         for doc in all_docs:
             doc_id = doc.metadata.get("document_id")
+            claim_id = doc.metadata.get("claim_id")
             topic = doc.metadata.get("topic", "General Policy")
 
             similar_docs_with_scores = self.vector_store.similarity_search_with_score(
                 doc.page_content,
                 k=query_k,
-                filter={"document_id": {"$ne": doc_id}}  # type: ignore[arg-type]
+                filter={"claim_id": {"$ne": claim_id}} if claim_id else None
             )
             
             for sim_doc, distance in similar_docs_with_scores:

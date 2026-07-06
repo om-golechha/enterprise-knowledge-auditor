@@ -1,28 +1,30 @@
-import { Home, FileText, ShieldCheck } from 'lucide-react';
+import { useState } from 'react';
+import { Home, FileText, ShieldCheck, ChevronLeft, ChevronRight } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { motion, AnimatePresence } from 'framer-motion';
 
-
 export function Sidebar() {
-  
+  const [isOpen, setIsOpen] = useState(true);
+
   const navItems = [
     { icon: Home, label: 'Workspace', path: '/' },
     { icon: FileText, label: 'Analyses', path: '/analyses' },
   ];
 
   return (
-    <aside className="w-[260px] border-r border-borderLight glass flex flex-col h-screen flex-shrink-0 z-40 transition-all relative overflow-hidden">
-
-      
-      {/* Logo with entrance animation */}
-      <motion.div 
-        className="h-16 flex items-center px-6 border-b border-borderLight/50 mb-6 relative z-10"
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+    <div className="relative h-screen z-40">
+      <motion.aside 
+        initial={{ width: 260 }}
+        animate={{ width: isOpen ? 260 : 0 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        className="flex flex-col h-screen flex-shrink-0 relative overflow-hidden rounded-none bg-white/5 backdrop-blur-xl border-r border-white/10"
       >
+        {/* Logo with entrance animation */}
+        <div 
+          className="h-16 flex items-center px-6 border-b border-borderLight/50 mb-6 relative z-10 w-full whitespace-nowrap"
+        >
         <motion.div 
           className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center mr-3 border border-accent/30 shadow-[0_0_15px_rgba(79,70,229,0.2)] relative overflow-hidden"
           whileHover={{ 
@@ -47,7 +49,7 @@ export function Sidebar() {
         >
           Auditor
         </motion.span>
-      </motion.div>
+      </div>
       
       <motion.div 
         className="px-4 mb-2"
@@ -132,6 +134,16 @@ export function Sidebar() {
       
       {/* Bottom ambient decoration */}
       <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-accent/[0.02] to-transparent pointer-events-none" />
-    </aside>
+    </motion.aside>
+
+    {/* Toggle Button (Outside aside so it stays visible when width is 0) */}
+    <button 
+      onClick={() => setIsOpen(!isOpen)}
+      className="absolute top-5 -right-4 z-50 bg-accent text-white p-1 rounded-full shadow-lg hover:scale-110 transition-transform flex items-center justify-center w-8 h-8"
+      style={{ left: isOpen ? '244px' : '0px', transition: 'left 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}
+    >
+      {isOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+    </button>
+  </div>
   );
 }

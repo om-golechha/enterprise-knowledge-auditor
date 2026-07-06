@@ -1,0 +1,163 @@
+[
+  {
+    "id": "pw_rotation_conflict",
+    "claim_a": "Passwords must be rotated every 90 days.",
+    "claim_b": "Passwords must be rotated every 180 days.",
+    "label": true,
+    "rationale": "Same subject (passwords), conflicting timeframes (90 vs 180 days)."
+  },
+  {
+    "id": "mfa_mandatory_vs_optional",
+    "claim_a": "MFA is mandatory for all employees.",
+    "claim_b": "MFA is optional for all employees.",
+    "label": true,
+    "rationale": "Same subject (MFA for all employees), mutually exclusive obligations."
+  },
+  {
+    "id": "exception_duration_conflict",
+    "claim_a": "Security exceptions are valid for 12 months and must be re-approved.",
+    "claim_b": "Security exceptions are valid for 6 months and must be re-approved.",
+    "label": true,
+    "rationale": "Same subject (exception validity period), conflicting durations."
+  },
+  {
+    "id": "remote_work_days_conflict",
+    "claim_a": "Employees may work remotely up to 2 days per week.",
+    "claim_b": "Employees may work remotely up to 5 days per week.",
+    "label": true,
+    "rationale": "Same subject (remote work policy), conflicting limits."
+  },
+  {
+    "id": "vpn_required_vs_optional",
+    "claim_a": "VPN is required for all remote access to corporate resources.",
+    "claim_b": "VPN is optional when accessing cloud-hosted applications remotely.",
+    "label": true,
+    "rationale": "Overlapping scope (remote access), conflicting VPN requirements."
+  },
+  {
+    "id": "data_encryption_conflict",
+    "claim_a": "All data at rest must be encrypted using AES-256.",
+    "claim_b": "Data at rest encryption is not required for non-production environments.",
+    "label": false,
+    "rationale": "Scope-exception: 'All data at rest' has a carve-out for non-production environments. Both rules can be simultaneously true."
+  },
+  {
+    "id": "session_timeout_conflict",
+    "claim_a": "User sessions must time out after 15 minutes of inactivity.",
+    "claim_b": "User sessions must time out after 60 minutes of inactivity.",
+    "label": true,
+    "rationale": "Same subject (user sessions), conflicting timeout values."
+  },
+  {
+    "id": "vendor_review_frequency",
+    "claim_a": "Third-party vendors must undergo security review annually.",
+    "claim_b": "Third-party vendors must undergo security review quarterly.",
+    "label": true,
+    "rationale": "Same subject (vendor security review), conflicting frequency."
+  },
+  {
+    "id": "change_approval_conflict",
+    "claim_a": "All production changes require CAB approval before deployment.",
+    "claim_b": "Emergency changes may be deployed without prior CAB approval.",
+    "label": false,
+    "rationale": "Scope-exception: Emergency changes are a valid carve-out to the standard change approval process."
+  },
+  {
+    "id": "logs_vs_backups_different_subjects",
+    "claim_a": "System logs must be retained for 365 days.",
+    "claim_b": "Database backups must be retained for 90 days.",
+    "label": false,
+    "rationale": "Different subjects: system logs vs database backups."
+  },
+  {
+    "id": "tls_compatible_policies",
+    "claim_a": "Data in transit must use TLS 1.2 or higher.",
+    "claim_b": "TLS 1.0 and 1.1 are blocked on all endpoints.",
+    "label": false,
+    "rationale": "Compatible \u2014 blocking old TLS supports requiring 1.2+."
+  },
+  {
+    "id": "different_account_classes",
+    "claim_a": "Standard user passwords must be minimum 14 characters.",
+    "claim_b": "Privileged user passwords must be minimum 18 characters.",
+    "label": false,
+    "rationale": "Different account classes: standard vs privileged."
+  },
+  {
+    "id": "different_session_types",
+    "claim_a": "Privileged sessions time out after 15 minutes of inactivity.",
+    "claim_b": "Read-only sessions time out after 45 minutes of inactivity.",
+    "label": false,
+    "rationale": "Different session types: privileged vs read-only."
+  },
+  {
+    "id": "oauth_vs_mfa_different_subjects",
+    "claim_a": "All production microservices must use OAuth2 for authentication.",
+    "claim_b": "Multi-factor authentication is optional for all employees.",
+    "label": false,
+    "rationale": "Different subjects: microservices auth vs employee MFA."
+  },
+  {
+    "id": "complementary_access_controls",
+    "claim_a": "Access is provisioned based on least privilege principle.",
+    "claim_b": "All new accounts are provisioned through an automated landing zone.",
+    "label": false,
+    "rationale": "Complementary controls \u2014 least privilege and landing zone are compatible."
+  },
+  {
+    "id": "encryption_and_storage",
+    "claim_a": "All PII must be encrypted at rest using AES-256.",
+    "claim_b": "Customer data is stored in PostgreSQL databases.",
+    "label": false,
+    "rationale": "Non-contradictory \u2014 encryption policy and storage technology are independent."
+  },
+  {
+    "id": "bcrypt_and_rotation",
+    "claim_a": "Passwords must be rotated every 180 days.",
+    "claim_b": "Passwords are hashed using bcrypt with a cost factor of 12.",
+    "label": false,
+    "rationale": "Complementary \u2014 rotation policy and hashing algorithm are independent."
+  },
+  {
+    "id": "siem_and_incident",
+    "claim_a": "All security events must be forwarded to the SIEM within 5 minutes.",
+    "claim_b": "The SOC team must acknowledge critical incidents within 15 minutes.",
+    "label": false,
+    "rationale": "Different stages of incident pipeline \u2014 forwarding vs acknowledgement."
+  },
+  {
+    "id": "vendor_sla_conflict",
+    "claim_a": "All vendor contracts must include a 99.99% uptime SLA.",
+    "claim_b": "Vendor contracts are required to guarantee at least 99.9% uptime.",
+    "label": true,
+    "rationale": "Conflicting strict requirements for the same subject (vendor SLA uptime)."
+  },
+  {
+    "id": "data_retention_conflict",
+    "claim_a": "Financial records must be permanently deleted after 7 years.",
+    "claim_b": "Financial records must be retained indefinitely for audit purposes.",
+    "label": true,
+    "rationale": "Same subject (financial records), mutually exclusive retention policies (deleted after 7 years vs retained indefinitely)."
+  },
+  {
+    "id": "training_scope_exception",
+    "claim_a": "All personnel must complete annual security awareness training.",
+    "claim_b": "Temporary contractors with less than 30-day contracts are exempt from annual security training.",
+    "label": false,
+    "rationale": "Scope-exception: Contractors with <30 day contracts are a specific carve-out to the general personnel rule."
+  },
+  {
+    "id": "expense_limit_scope_exception",
+    "claim_a": "The maximum allowable expense for a client dinner is $100 per head.",
+    "claim_b": "Executive leadership may approve client dinners up to $250 per head.",
+    "label": false,
+    "rationale": "Scope-exception: Executive leadership has a specific override/carve-out for the general expense limit."
+  },
+  {
+    "id": "patching_stricter_subset",
+    "claim_a": "All software vulnerabilities must be patched within 30 days of discovery.",
+    "claim_b": "Critical severity vulnerabilities must be patched within 7 days of discovery.",
+    "label": false,
+    "rationale": "Ambiguous edge case: One is a stricter subset of the other. Following the 7-day rule for criticals does not make it impossible to follow the 30-day rule for all vulnerabilities. They can coexist."
+  }
+]
